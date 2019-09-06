@@ -1,0 +1,11 @@
+docker/resources/devdata
+*~
+.idea
+cmake-build-debug/
+.vscode/
+venv/
+build/*
+*.swp
+tags
+compile_commands.json
+*__pycache__

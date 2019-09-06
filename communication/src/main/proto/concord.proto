@@ -1,0 +1,263 @@
+// Copyright (c) 2018-2019 VMware, Inc. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+//
+// Concord's external interface definition.
+
+syntax = "proto2";
+
+package com.vmware.concord;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+
+message ConcordRequest {
+   optional ProtocolRequest protocol_request = 1;
+   optional PeerRequest peer_request = 2;
+   repeated EthRequest eth_request = 3;
+   optional BlockListRequest block_list_request = 4;
+   optional BlockRequest block_request = 5;
+   optional TransactionRequest transaction_request = 6;
+   optional TransactionListRequest transaction_list_request = 7;
+   optional LogsRequest logs_request = 8;
+   optional TimeRequest time_request = 9;
+   optional ReconfigurationRequest reconfiguration_request = 12;
+
+   // 13-2045 open for definition
+   // Likely: metrics/stats, non-eth blockchain, other admin
+
+   optional TestRequest test_request = 2046;
+}
+
+message ConcordResponse {
+   optional ProtocolResponse protocol_response = 1;
+   optional PeerResponse peer_response = 2;
+   repeated EthResponse eth_response = 3;
+   optional BlockListResponse block_list_response = 4;
+   optional BlockResponse block_response = 5;
+   optional TransactionResponse transaction_response = 6;
+   optional TransactionListResponse transaction_list_response = 7;
+   optional LogsResponse logs_response = 8;
+   optional TimeResponse time_response = 9;
+   optional ReconfigurationResponse reconfiguration_response = 12;
+
+   // 13-2045 open for definition
+   optional TestResponse test_response = 2046;
+   repeated ErrorResponse error_response = 2047;
+}
+
+// ----------------------------------------------------------------------------
+// All message definitions below this comment are sent/received within a
+// ConcordRequest/ConcordResponse message as defined above.
+//
+// The following list of message definitions is ordered alphabetically.
+// ----------------------------------------------------------------------------
+
+message BlockBrief {
+   optional int64 number = 1;
+   optional bytes hash = 2;
+}
+
+message BlockListRequest {
+   optional int64 latest = 1;
+   optional int64 count = 2;
+}
+
+message BlockListResponse {
+   repeated BlockBrief block = 1;
+}
+
+message BlockRequest {
+   optional int64 number = 1;
+   optional bytes hash = 2;
+}
+
+message BlockResponse {
+   optional int64 number = 1;
+   optional bytes hash = 2;
+   optional bytes parent_hash = 3;
+   optional bytes nonce = 4;
+   optional int64 size = 5;
+   repeated TransactionResponse transaction = 6;
+   optional int64 timestamp = 7;
+   optional int64 gas_limit = 8;
+   optional int64 gas_used = 9;
+}
+
+message ErrorResponse {
+   optional string description = 1;
+}
+
+message EthRequest {
+
+   enum EthMethod {
+      SEND_TX = 1;
+      // SEND_TX_RAW is removed
+      // GET_TX_RECEIPT is removed
+      // instead directly call TransactionRequest
+      GET_STORAGE_AT = 4;
+      CALL_CONTRACT = 5;
+      NEW_ACCOUNT = 6;
+      // FILTER_REQUEST (7) is removed
+      GET_CODE = 8;
+      BLOCK_NUMBER = 9;
+      GET_TX_COUNT = 10;
+      GET_BALANCE = 11;
+   }
+
+   optional EthMethod method = 1;
+   optional int64 id = 2;
+   optional bytes addr_to = 3;
+   optional bytes addr_from = 4;
+   optional bytes value = 5;
+   optional bytes data = 6;
+   optional bool create = 7;
+   // filter_request (8) is removed
+   optional int64 nonce = 9;
+   optional int64 gas_price = 10;
+   optional int64 gas = 11;
+   optional int64 sig_v = 12;
+   optional bytes sig_r = 13;
+   optional bytes sig_s = 14;
+   optional int64 timestamp = 15;    // Internal only!
+   optional int64 block_number = 16; // for the default block parameter
+   optional int64 gas_limit = 17;    // Internal only!
+}
+
+message EthResponse {
+   optional int64 id = 1;
+   optional bytes data = 2;
+   optional bytes contract_address = 3;
+   optional int32 status = 4;
+   // filter_response (5) is removed
+}
+
+message LogResponse {
+   optional bytes contract_address = 1;
+   repeated bytes topic = 2;
+   optional bytes data = 3;
+   optional bytes block_hash = 4;
+   optional int64 block_number = 5;
+   optional uint64 log_index = 6;
+   optional bytes transaction_hash = 7;
+   optional uint64 transaction_index = 8;
+   optional uint64 transaction_log_index = 9;
+}
+
+message LogsRequest {
+   optional int64 from_block = 1;
+   optional int64 to_block = 2;
+   optional bytes contract_address = 3;
+   repeated bytes topic = 4;
+   optional bytes block_hash = 5;
+}
+
+message LogsResponse {
+   repeated LogResponse log = 1;
+}
+
+message Peer {
+   optional string address = 1;
+   optional string hostname = 2;
+   optional int64 millis_since_last_message = 3;
+   optional int64 millis_since_last_message_threshold = 4;
+
+   // putting this one late so it doesn't consume a useful address
+   // while we're figuring out what format it should actually have
+   optional string status = 2047;
+}
+
+message PeerRequest {
+   optional bool return_peers = 1;
+   repeated Peer add_peer = 2;
+   repeated Peer remove_peer = 3;
+}
+
+message PeerResponse {
+   repeated Peer peer = 1;
+}
+
+message ProtocolRequest {
+   optional int32 client_version = 1;
+   // TODO: probably some auth in here too
+}
+
+message ProtocolResponse {
+   optional int32 server_version = 1;
+   optional int64 net_version = 2;
+}
+
+message ReconfigureTimePusherPeriodRequest {
+   optional google.protobuf.Duration time_pusher_period_ms = 1;
+}
+
+// TODO: There should be some form of authentication showing that a
+//       ReconfigurationRequest actually originated from an entity with the
+//       authority to reconfigure the node the request is sent to.
+message ReconfigurationRequest {
+   optional ReconfigureTimePusherPeriodRequest
+      reconfigure_time_pusher_period = 1;
+}
+
+message ReconfigurationResponse {
+   optional bool successful = 1;
+}
+
+message TestRequest {
+   optional string echo = 1;
+}
+
+message TestResponse {
+   optional string echo = 1;
+}
+
+message TimeRequest {
+   optional TimeSample sample = 1;
+   optional bool return_summary = 2;
+   optional bool return_samples = 3;
+}
+
+message TimeResponse {
+   optional google.protobuf.Timestamp summary = 1;
+   repeated TimeSample sample = 2;
+}
+
+message TimeSample {
+   optional bytes source = 1;
+   optional google.protobuf.Timestamp time = 2;
+   optional bytes signature = 3;
+}
+
+message TransactionListRequest {
+   optional bytes latest = 1;
+   optional int64 count = 2;
+}
+
+message TransactionListResponse {
+   repeated TransactionResponse transaction = 1;
+   optional bytes next = 2;
+}
+
+message TransactionRequest {
+   optional bytes hash = 1;
+}
+
+message TransactionResponse {
+   optional bytes hash = 1;
+   optional bytes from = 2;
+   optional bytes to = 3;
+   optional bytes value = 4;
+   optional bytes input = 5;
+   optional bytes block_hash = 6;
+   optional int64 block_number = 7;
+   optional int64 transactionIndex = 8;
+   optional int64 nonce = 9;
+   optional int32 status = 10;
+   optional bytes contract_address = 11;
+   repeated LogResponse log = 12;
+   optional uint64 gas_price = 13;
+   optional uint64 gas_limit = 14;
+   optional uint64 sig_v = 15;
+   optional bytes sig_r = 16;
+   optional bytes sig_s = 17;
+   optional uint64 gas_used = 18;
+}

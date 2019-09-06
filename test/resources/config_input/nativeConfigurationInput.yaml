@@ -1,0 +1,75 @@
+client_proxies_per_replica: 4
+c_val: 0
+f_val: 1
+tls_cipher_suite_list: ECDHE-ECDSA-AES256-GCM-SHA384
+tls_certificates_folder_path: ./test/resources/tls_certs
+comm_to_use: tls
+FEATURE_time_service: false
+node__TEMPLATE:
+  genesis_block: ./test/resources/genesis.json
+  logger_config: test/resources/log4cplus.properties
+node:
+  - service_host: 0.0.0.0
+    service_port: 5458
+    blockchain_db_path: rocksdbdata1/
+    time_source_id: time-source1
+    replica:
+      - replica_host: 127.0.0.1
+        replica_port: 3501
+    client_proxy:
+      - client_host: 127.0.0.1
+        client_port: 3505
+      - client_host: 127.0.0.1
+        client_port: 3506
+      - client_host: 127.0.0.1
+        client_port: 3507
+      - client_host: 127.0.0.1
+        client_port: 3508
+  - service_host: 0.0.0.0
+    service_port: 5459
+    time_source_id: time-source2
+    blockchain_db_path: rocksdbdata2/
+    replica:
+      - replica_host: 127.0.0.1
+        replica_port: 3502
+    client_proxy:
+      - client_host: 127.0.0.1
+        client_port: 3509
+      - client_host: 127.0.0.1
+        client_port: 3510
+      - client_host: 127.0.0.1
+        client_port: 3511
+      - client_host: 127.0.0.1
+        client_port: 3512
+  - service_host: 0.0.0.0
+    service_port: 5460
+    blockchain_db_path: rocksdbdata3/
+    time_source_id: time-source3
+    replica:
+      - replica_host: 127.0.0.1
+        replica_port: 3503
+    client_proxy:
+      - client_host: 127.0.0.1
+        client_port: 3513
+      - client_host: 127.0.0.1
+        client_port: 3514
+      - client_host: 127.0.0.1
+        client_port: 3515
+      - client_host: 127.0.0.1
+        client_port: 3516
+  - service_host: 0.0.0.0
+    service_port: 5461
+    blockchain_db_path: rocksdbdata4/
+    time_source_id: time-source4
+    replica:
+      - replica_host: 127.0.0.1
+        replica_port: 3504
+    client_proxy:
+      - client_host: 127.0.0.1
+        client_port: 3517
+      - client_host: 127.0.0.1
+        client_port: 3518
+      - client_host: 127.0.0.1
+        client_port: 3519
+      - client_host: 127.0.0.1
+        client_port: 3520

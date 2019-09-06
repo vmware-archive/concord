@@ -1,0 +1,6 @@
+[submodule "submodules/concord-bft"]
+	path = submodules/concord-bft
+	url = https://github.com/vmware/concord-bft
+[submodule "submodules/HdrHistogram_c"]
+	path = submodules/HdrHistogram_c
+	url = https://github.com/HdrHistogram/HdrHistogram_c

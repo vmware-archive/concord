@@ -1,0 +1,24 @@
+{
+  "config": {
+    "chainId": 1,
+    "homesteadBlock": 0,
+    "eip155Block": 0,
+    "eip158Block": 0
+  },
+  "alloc": {
+    "262c0d7ab5ffd4ede2199f6ea793f819e1abb019": {
+      "balance": "12345"
+    },
+    "5bb088f57365907b1840e45984cae028a82af934": {
+      "balance": "0xabcdef"
+    },
+    "0000a12b3f3d6c9b0d3f126a83ec2dd3dad15f39": {
+      "balance": "0x7fffffffffffffff"
+    }
+  },
+  "nonce": "0x000000000000000",
+  "difficulty": "0x400",
+  "mixhash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "gasLimit": "0xf4240"
+}

@@ -1,0 +1,118 @@
+version: '3'
+services:
+  concord1:
+    image: concord-node:latest
+    ports:
+      - 5458:5458
+    expose:
+      - 3501/tcp
+      - 3502/tcp
+      - 3503/tcp
+      - 3504/tcp
+      - 3505/tcp
+    volumes:
+      - ../resources/devdata/rocksdbdata1:/concord/rocksdbdata
+      - ../resources/devdata/log1:/concord/log
+      - ../resources/config-concord1:/concord/config-local
+      - ../resources/config-public:/concord/config-public:ro
+      - ../resources/tls_certs:/concord/tls_certs:ro
+
+  ethrpc1:
+    image: concord-ethrpc:latest
+    ports:
+      - 8545:8545
+    volumes:
+      - ../resources/config-ethrpc1:/config:ro
+    command:
+      - java
+      - -jar
+      - concord-ethrpc.jar
+      - --ConcordAuthorities=concord1:5458
+
+  concord2:
+    image: concord-node:latest
+    ports:
+      - 5459:5458
+    expose:
+      - 3501/tcp
+      - 3502/tcp
+      - 3503/tcp
+      - 3504/tcp
+      - 3505/tcp
+    volumes:
+      - ../resources/devdata/rocksdbdata2:/concord/rocksdbdata
+      - ../resources/devdata/log2:/concord/log
+      - ../resources/config-concord2:/concord/config-local
+      - ../resources/config-public:/concord/config-public:ro
+      - ../resources/tls_certs:/concord/tls_certs:ro
+
+  ethrpc2:
+    image: concord-ethrpc:latest
+    ports:
+      - 8546:8545
+    volumes:
+      - ../resources/config-ethrpc2:/config:ro
+    command:
+      - java
+      - -jar
+      - concord-ethrpc.jar
+      - --ConcordAuthorities=concord2:5458
+
+  concord3:
+    image: concord-node:latest
+    ports:
+      - 5460:5458
+    expose:
+      - 3501/tcp
+      - 3502/tcp
+      - 3503/tcp
+      - 3504/tcp
+      - 3505/tcp
+    volumes:
+      - ../resources/devdata/rocksdbdata3:/concord/rocksdbdata
+      - ../resources/devdata/log3:/concord/log
+      - ../resources/config-concord3:/concord/config-local
+      - ../resources/config-public:/concord/config-public:ro
+      - ../resources/tls_certs:/concord/tls_certs:ro
+
+  ethrpc3:
+    image: concord-ethrpc:latest
+    ports:
+      - 8547:8545
+    volumes:
+      - ../resources/config-ethrpc3:/config:ro
+    command:
+      - java
+      - -jar
+      - concord-ethrpc.jar
+      - --ConcordAuthorities=concord3:5458
+
+  concord4:
+    image: concord-node:latest
+    ports:
+      - 5461:5458
+    expose:
+      - 3501/tcp
+      - 3502/tcp
+      - 3503/tcp
+      - 3504/tcp
+      - 3505/tcp
+    volumes:
+      - ../resources/devdata/rocksdbdata4:/concord/rocksdbdata
+      - ../resources/devdata/log4:/concord/log
+      - ../resources/config-concord4:/concord/config-local
+      - ../resources/config-public:/concord/config-public:ro
+      - ../resources/tls_certs:/concord/tls_certs:ro
+
+  ethrpc4:
+    image: concord-ethrpc:latest
+    ports:
+      - 8548:8545
+    volumes:
+      - ../resources/config-ethrpc4:/config:ro
+    command:
+      - java
+      - -jar
+      - concord-ethrpc.jar
+      - --ConcordAuthorities=concord4:5458
+

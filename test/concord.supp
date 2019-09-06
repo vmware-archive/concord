@@ -1,0 +1,19 @@
+{
+   VB-930: boost queue does not initialize next pointer
+   Memcheck:Cond
+   fun:_ZNSt6atomicIN5boost8lockfree6detail10tagged_ptrINS1_5queueIPN7concord9consensus9KVBClientEJEE4nodeEEEE21compare_exchange_weakERSB_SB_St12memory_orderSE_
+   fun:_ZNSt6atomicIN5boost8lockfree6detail10tagged_ptrINS1_5queueIPN7concord9consensus9KVBClientEJEE4nodeEEEE21compare_exchange_weakERSB_SB_St12memory_order
+   fun:_ZN5boost8lockfree5queueIPN7concord9consensus9KVBClientEJEE7do_pushILb0EEEbRKS5_
+   fun:_ZN5boost8lockfree5queueIPN7concord9consensus9KVBClientEJEE4pushERKS5_
+   fun:_ZN7concord9consensus13KVBClientPoolC1ERSt6vectorIPNS0_9KVBClientESaIS4_EE
+   fun:_Z11run_serviceRN7concord6config20ConcordConfigurationES2_RN9log4cplus6LoggerE
+   fun:main
+}
+{
+   VB-930: boost queue does not initialize next pointer
+   Memcheck:Cond
+   fun:_ZN5boost8lockfree5queueIPN7concord9consensus9KVBClientEJEE7do_pushILb0EEEbRKS5_
+   fun:_ZN5boost8lockfree5queueIPN7concord9consensus9KVBClientEJEE4pushERKS5_
+   ...
+}
+

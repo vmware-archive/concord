@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration>
+    <Appenders>
+        <Console name="StdoutAppender" target="SYSTEM_OUT">
+            <JsonLayout complete="false" compact="true" eventEol="true" properties="false"
+                        objectMessageAsJsonObject="true">
+                <!-- Add key-value pairs from ThreadContext that need to be published in the logs -->
+                <KeyValuePair key="consortium_id" value="$${ctx:consortium_id}"/>
+                <KeyValuePair key="organization_id" value="$${ctx:organization_id}"/>
+                <KeyValuePair key="replica_id" value="$${ctx:replica_id}"/>
+                <KeyValuePair key="http_method" value="$${ctx:method}"/>
+                <KeyValuePair key="uri" value="$${ctx:uri}"/>
+            </JsonLayout>
+        </Console>
+    </Appenders>
+    <Loggers>
+        <Root level="INFO">
+            <AppenderRef ref="StdoutAppender"/>
+        </Root>
+        <Logger name="ethLogger" level="INFO" additivity="false">
+            <AppenderRef ref="StdoutAppender"/>
+        </Logger>
+    </Loggers>
+</Configuration>

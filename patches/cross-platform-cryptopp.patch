@@ -1,0 +1,31 @@
+From 05bef64a30a435ce984d2523cfdbb2e14db7dcab Mon Sep 17 00:00:00 2001
+From: Bryan Fink <bfink@vmware.com>
+Date: Thu, 14 Jun 2018 17:10:02 -0700
+Subject: [PATCH] correct march check
+
+so we don't do native builds on docker
+---
+ CMakeLists.txt | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 0221d6a..04c49bc 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -126,10 +126,9 @@ endif()
+ 
+ # -march=native for GCC, Clang and ICC in any version that does support it.
+ if ((NOT CRYPTOPP_CROSS_COMPILE) AND (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU|Intel"))
+-	CHECK_CXX_COMPILER_FLAG("-march=native" COMPILER_OPT_ARCH_NATIVE_SUPPORTED)
+-	if (COMPILER_OPT_ARCH_NATIVE_SUPPORTED AND NOT CMAKE_CXX_FLAGS MATCHES "-march=")
+-		SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
+-	endif()
++  if (NOT CMAKE_CXX_FLAGS MATCHES "-march=")
++    CHECK_CXX_COMPILER_FLAG("-march=native" COMPILER_OPT_ARCH_NATIVE_SUPPORTED)
++  endif()
+ endif()
+ 
+ # Solaris specific 
+-- 
+2.7.4
+
