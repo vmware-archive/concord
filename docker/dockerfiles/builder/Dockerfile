@@ -39,8 +39,6 @@ RUN apt-get update && apt-get -y install \
     python2.7 \
     python3-pip \
     wget \
-    default-jre \
-    default-jdk \
     && rm -rf /var/lib/apt/lists/*
 
 RUN ln -s /usr/bin/clang-format-7 /usr/bin/clang-format

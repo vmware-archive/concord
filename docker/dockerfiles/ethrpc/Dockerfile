@@ -25,7 +25,7 @@ COPY ./tools/ethrpc/src ./ethrpc/src
 RUN mvn -f ethrpc/pom.xml package
 
 ## Runtime image.
-FROM concord-builder
+FROM openjdk:11.0.4-jdk-slim-buster
 LABEL description="RPC Server for Ethereum API"
 
 WORKDIR /ethrpc
