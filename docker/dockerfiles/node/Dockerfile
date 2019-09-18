@@ -2,7 +2,6 @@
 FROM concord-builder AS concord-build
 
 # The build context should be the root of the repository.
-COPY ./communication /communication
 
 ## Copy the blockchain repo .git directory so submodules can run git commands
 ## While this is somewhat dirty it makes the relative path in
