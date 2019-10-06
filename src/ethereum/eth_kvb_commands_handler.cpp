@@ -49,7 +49,7 @@ using concord::common::zero_hash;
 using concord::time::TimeContract;
 using concord::utils::EthSign;
 using concord::utils::RLPBuilder;
-using concord::utils::to_evm_uint256be;
+using concord::utils::to_evmc_uint256be;
 using concord::common::operator<<;
 
 using concord::storage::IBlocksAppender;
@@ -181,10 +181,10 @@ bool EthKvbCommandsHandler::handle_eth_sendTransaction(
     timestamp = request.timestamp();
   }
 
-  evm_uint256be txhash{{0}};
-  evm_result &&result = run_evm(request, kvbStorage, timestamp, txhash);
+  evmc_uint256be txhash{{0}};
+  evmc_result &&result = run_evm(request, kvbStorage, timestamp, txhash);
 
-  if (result.status_code == EVM_REVERT && result.output_data != nullptr) {
+  if (result.status_code == EVMC_REVERT && result.output_data != nullptr) {
     ErrorResponse *response = concresp.add_error_response();
     std::string error_msg(result.output_data,
                           result.output_data + result.output_size);
@@ -192,7 +192,7 @@ bool EthKvbCommandsHandler::handle_eth_sendTransaction(
   } else if (txhash != zero_hash) {
     EthResponse *response = concresp.add_eth_response();
     response->set_id(request.id());
-    response->set_data(txhash.bytes, sizeof(evm_uint256be));
+    response->set_data(txhash.bytes, sizeof(evmc_uint256be));
   } else {
     std::ostringstream description;
     description << "An error occurred running the transaction (status="
@@ -221,7 +221,7 @@ bool EthKvbCommandsHandler::handle_transaction_request(
     ConcordResponse &concresp) const {
   try {
     const TransactionRequest request = concreq.transaction_request();
-    evm_uint256be hash{{0}};
+    evmc_uint256be hash{{0}};
     std::copy(request.hash().begin(), request.hash().end(), hash.bytes);
     EthTransaction tx = kvbStorage.get_transaction(hash);
 
@@ -252,11 +252,11 @@ bool EthKvbCommandsHandler::handle_transaction_list_request(
                  static_cast<int>(request.count()));
     TransactionListResponse *response =
         concresp.mutable_transaction_list_response();
-    vector<evm_uint256be>::iterator it;
+    vector<evmc_uint256be>::iterator it;
     EthBlock curr_block;
 
     if (request.has_latest()) {
-      evm_uint256be latest_tr{{0}};
+      evmc_uint256be latest_tr{{0}};
       std::copy(request.latest().begin(), request.latest().end(),
                 latest_tr.bytes);
       EthTransaction tr = kvbStorage.get_transaction(latest_tr);
@@ -287,8 +287,8 @@ bool EthKvbCommandsHandler::handle_transaction_list_request(
     }
 
     if (it != curr_block.transactions.end()) {
-      evm_uint256be next = *it;
-      response->set_next(next.bytes, sizeof(evm_uint256be));
+      evmc_uint256be next = *it;
+      response->set_next(next.bytes, sizeof(evmc_uint256be));
     }
 
   } catch (TransactionNotFoundException) {
@@ -308,16 +308,16 @@ bool EthKvbCommandsHandler::handle_transaction_list_request(
  * struct.
  */
 void EthKvbCommandsHandler::build_transaction_response(
-    evm_uint256be &hash, EthTransaction &tx,
+    evmc_uint256be &hash, EthTransaction &tx,
     TransactionResponse *response) const {
   response->set_hash(hash.bytes, sizeof(hash.bytes));
-  response->set_from(tx.from.bytes, sizeof(evm_address));
+  response->set_from(tx.from.bytes, sizeof(evmc_address));
   if (tx.to != zero_address) {
-    response->set_to(tx.to.bytes, sizeof(evm_address));
+    response->set_to(tx.to.bytes, sizeof(evmc_address));
   }
   if (tx.contract_address != zero_address) {
     response->set_contract_address(tx.contract_address.bytes,
-                                   sizeof(evm_address));
+                                   sizeof(evmc_address));
   }
   if (tx.input.size()) {
     response->set_input(std::string(tx.input.begin(), tx.input.end()));
@@ -325,21 +325,21 @@ void EthKvbCommandsHandler::build_transaction_response(
 
   response->set_status(tx.status);
   response->set_nonce(tx.nonce);
-  response->set_value(tx.value.bytes, sizeof(evm_uint256be));
-  response->set_block_hash(tx.block_hash.bytes, sizeof(evm_uint256be));
+  response->set_value(tx.value.bytes, sizeof(evmc_uint256be));
+  response->set_block_hash(tx.block_hash.bytes, sizeof(evmc_uint256be));
   response->set_block_number(tx.block_number);
   response->set_gas_limit(tx.gas_limit);
   response->set_gas_price(tx.gas_price);
   response->set_gas_used(tx.gas_used);
   response->set_sig_v(tx.sig_v);
-  response->set_sig_r(tx.sig_r.bytes, sizeof(evm_uint256be));
-  response->set_sig_s(tx.sig_s.bytes, sizeof(evm_uint256be));
+  response->set_sig_r(tx.sig_r.bytes, sizeof(evmc_uint256be));
+  response->set_sig_s(tx.sig_s.bytes, sizeof(evmc_uint256be));
 
   for (EthLog &log : tx.logs) {
     LogResponse *outlog = response->add_log();
-    outlog->set_contract_address(log.address.bytes, sizeof(evm_address));
-    for (evm_uint256be topic : log.topics) {
-      outlog->add_topic(topic.bytes, sizeof(evm_uint256be));
+    outlog->set_contract_address(log.address.bytes, sizeof(evmc_address));
+    for (evmc_uint256be topic : log.topics) {
+      outlog->add_topic(topic.bytes, sizeof(evmc_uint256be));
     }
     if (log.data.size() > 0) {
       outlog->set_data(std::string(log.data.begin(), log.data.end()));
@@ -362,7 +362,7 @@ bool EthKvbCommandsHandler::handle_logs_request(
   try {
     // Let's figure out the block (range) first and then apply other filters
     if (request.has_block_hash()) {
-      evm_uint256be block_hash;
+      evmc_uint256be block_hash;
       std::copy(request.block_hash().begin(), request.block_hash().end(),
                 block_hash.bytes);
       block = kvbStorage.get_block(block_hash);
@@ -427,7 +427,7 @@ void EthKvbCommandsHandler::collect_logs_from_block(
       if (request.has_contract_address() &&
           request.contract_address().size() > 0 &&
           memcmp(request.contract_address().data(), tx_log.address.bytes,
-                 sizeof(evm_address)) != 0) {
+                 sizeof(evmc_address)) != 0) {
         continue;
       }
 
@@ -442,7 +442,7 @@ void EthKvbCommandsHandler::collect_logs_from_block(
         bool match = true;
         for (int i = 0; i < request.topic_size(); ++i) {
           if (memcmp(request.topic(i).data(), tx_log.topics[i].bytes,
-                     sizeof(evm_uint256be)) != 0) {
+                     sizeof(evmc_uint256be)) != 0) {
             match = false;
             break;
           }
@@ -454,16 +454,16 @@ void EthKvbCommandsHandler::collect_logs_from_block(
 
       LogResponse *log = response->add_log();
 
-      log->set_contract_address(tx_log.address.bytes, sizeof(evm_address));
-      for (evm_uint256be topic : tx_log.topics) {
-        log->add_topic(topic.bytes, sizeof(evm_uint256be));
+      log->set_contract_address(tx_log.address.bytes, sizeof(evmc_address));
+      for (evmc_uint256be topic : tx_log.topics) {
+        log->add_topic(topic.bytes, sizeof(evmc_uint256be));
       }
       if (tx_log.data.size() > 0) {
         log->set_data(std::string(tx_log.data.begin(), tx_log.data.end()));
       }
-      log->set_block_hash(block.hash.bytes, sizeof(evm_uint256be));
+      log->set_block_hash(block.hash.bytes, sizeof(evmc_uint256be));
       log->set_block_number(block.number);
-      log->set_transaction_hash(tx.hash().bytes, sizeof(evm_uint256be));
+      log->set_transaction_hash(tx.hash().bytes, sizeof(evmc_uint256be));
 
       // So far we only have one transaction per block
       log->set_transaction_index(0);
@@ -506,7 +506,7 @@ bool EthKvbCommandsHandler::handle_block_list_request(
     EthBlock b = kvbStorage.get_block(latest - i);
     BlockBrief *bb = response->add_block();
     bb->set_number(b.number);
-    bb->set_hash(b.hash.bytes, sizeof(evm_uint256be));
+    bb->set_hash(b.hash.bytes, sizeof(evmc_uint256be));
   }
 
   // all list requests are valid
@@ -548,15 +548,15 @@ bool EthKvbCommandsHandler::handle_block_request(
         block = kvbStorage.get_block(kvbStorage.current_block_number());
       }
     } else if (request.has_hash()) {
-      evm_uint256be blkhash;
+      evmc_uint256be blkhash;
       std::copy(request.hash().begin(), request.hash().end(), blkhash.bytes);
       block = kvbStorage.get_block(blkhash);
     }
 
     BlockResponse *response = concresp.mutable_block_response();
     response->set_number(block.number);
-    response->set_hash(block.hash.bytes, sizeof(evm_uint256be));
-    response->set_parent_hash(block.parent_hash.bytes, sizeof(evm_uint256be));
+    response->set_hash(block.hash.bytes, sizeof(evmc_uint256be));
+    response->set_parent_hash(block.parent_hash.bytes, sizeof(evmc_uint256be));
     response->set_timestamp(block.timestamp);
     response->set_gas_limit(block.gas_limit);
     response->set_gas_used(block.gas_used);
@@ -584,7 +584,7 @@ bool EthKvbCommandsHandler::handle_block_request(
         // we can still fill out some of the info, though, which may help an
         // operator debug
         TransactionResponse *txresp = response->add_transaction();
-        txresp->set_hash(t.bytes, sizeof(evm_uint256be));
+        txresp->set_hash(t.bytes, sizeof(evmc_uint256be));
       }
     }
   } catch (BlockNotFoundException) {
@@ -649,12 +649,12 @@ bool EthKvbCommandsHandler::handle_eth_callContract(
         google::protobuf::util::TimeUtil::TimestampToSeconds(time->GetTime());
   }
 
-  evm_uint256be txhash{{0}};
-  evm_result &&result = run_evm(request, kvbStorage, timestamp, txhash);
+  evmc_uint256be txhash{{0}};
+  evmc_result &&result = run_evm(request, kvbStorage, timestamp, txhash);
   // Here we don't care about the txhash. Transaction was never
   // recorded, instead we focus on the result object and the
   // output_data field in it.
-  if (result.status_code == EVM_SUCCESS) {
+  if (result.status_code == EVMC_SUCCESS) {
     EthResponse *response = concresp.add_eth_response();
     response->set_id(request.id());
     if (result.output_data != NULL && result.output_size > 0) {
@@ -681,9 +681,9 @@ bool EthKvbCommandsHandler::handle_eth_blockNumber(
     ConcordResponse &concresp) const {
   const EthRequest request = concreq.eth_request(0);
   EthResponse *response = concresp.add_eth_response();
-  evm_uint256be current_block{{0}};
-  to_evm_uint256be(kvbStorage.current_block_number(), &current_block);
-  response->set_data(current_block.bytes, sizeof(evm_uint256be));
+  evmc_uint256be current_block{{0}};
+  to_evmc_uint256be(kvbStorage.current_block_number(), &current_block);
+  response->set_data(current_block.bytes, sizeof(evmc_uint256be));
   response->set_id(request.id());
 
   return true;
@@ -696,14 +696,14 @@ bool EthKvbCommandsHandler::handle_eth_getCode(
     const ConcordRequest &concreq, EthKvbStorage &kvbStorage,
     ConcordResponse &concresp) const {
   const EthRequest request = concreq.eth_request(0);
-  evm_address account{{0}};
+  evmc_address account{{0}};
   std::copy(request.addr_to().begin(), request.addr_to().end(), account.bytes);
 
   // handle the block number parameter
   uint64_t block_number = parse_block_parameter(request, kvbStorage);
 
   vector<uint8_t> code;
-  evm_uint256be hash{{0}};
+  evmc_uint256be hash{{0}};
   if (kvbStorage.get_code(account, code, hash, block_number)) {
     EthResponse *response = concresp.add_eth_response();
     response->set_data(std::string(code.begin(), code.end()));
@@ -724,16 +724,16 @@ bool EthKvbCommandsHandler::handle_eth_getStorageAt(
     ConcordResponse &concresp) const {
   const EthRequest request = concreq.eth_request(0);
 
-  evm_address account{{0}};
+  evmc_address account{{0}};
   std::copy(request.addr_to().begin(), request.addr_to().end(), account.bytes);
-  evm_uint256be key{{0}};
+  evmc_uint256be key{{0}};
   std::copy(request.data().begin(), request.data().end(), key.bytes);
   // TODO(BWF): now that we're using KVB for storage, we can support the block
   // argument
 
   uint64_t block_number = parse_block_parameter(request, kvbStorage);
 
-  evm_uint256be data = kvbStorage.get_storage(account, key, block_number);
+  evmc_uint256be data = kvbStorage.get_storage(account, key, block_number);
   EthResponse *response = concresp.add_eth_response();
   response->set_id(request.id());
   response->set_data(data.bytes, sizeof(data));
@@ -749,13 +749,13 @@ bool EthKvbCommandsHandler::handle_eth_getTransactionCount(
     ConcordResponse &concresp) const {
   const EthRequest request = concreq.eth_request(0);
 
-  evm_address account{{0}};
+  evmc_address account{{0}};
   std::copy(request.addr_to().begin(), request.addr_to().end(), account.bytes);
 
   uint64_t block_number = parse_block_parameter(request, kvbStorage);
 
   uint64_t nonce = kvbStorage.get_nonce(account, block_number);
-  evm_uint256be bignonce;
+  evmc_uint256be bignonce;
   memset(bignonce.bytes, 0, sizeof(bignonce));
 #ifdef BOOST_LITTLE_ENDIAN
   std::reverse_copy(reinterpret_cast<uint8_t *>(&nonce),
@@ -782,11 +782,11 @@ bool EthKvbCommandsHandler::handle_eth_getBalance(
     ConcordResponse &concresp) const {
   const EthRequest request = concreq.eth_request(0);
 
-  evm_address account;
+  evmc_address account;
   std::copy(request.addr_to().begin(), request.addr_to().end(), account.bytes);
 
   uint64_t block_number = parse_block_parameter(request, kvbStorage);
-  evm_uint256be balance = kvbStorage.get_balance(account, block_number);
+  evmc_uint256be balance = kvbStorage.get_balance(account, block_number);
 
   EthResponse *response = concresp.add_eth_response();
   response->set_id(request.id());
@@ -799,12 +799,12 @@ bool EthKvbCommandsHandler::handle_eth_getBalance(
  * Extract "from" address from request+signature.
  */
 void EthKvbCommandsHandler::recover_from(const EthRequest &request,
-                                         evm_address *sender) const {
+                                         evmc_address *sender) const {
   static const vector<uint8_t> empty;
 
   if (request.has_sig_v() && request.has_sig_r() &&
-      request.sig_r().size() == sizeof(evm_uint256be) && request.has_sig_s() &&
-      request.sig_s().size() == sizeof(evm_uint256be)) {
+      request.sig_r().size() == sizeof(evmc_uint256be) && request.has_sig_s() &&
+      request.sig_s().size() == sizeof(evmc_uint256be)) {
     // First we have to reconstruct the original message
     RLPBuilder rlpb;
     rlpb.start_list();
@@ -874,13 +874,13 @@ void EthKvbCommandsHandler::recover_from(const EthRequest &request,
     }
 
     vector<uint8_t> rlp = rlpb.build();
-    evm_uint256be rlp_hash = concord::utils::eth_hash::keccak_hash(rlp);
+    evmc_uint256be rlp_hash = concord::utils::eth_hash::keccak_hash(rlp);
 
     // Then we can check it against the signature.
 
-    evm_uint256be sigR{{0}};
+    evmc_uint256be sigR{{0}};
     std::copy(request.sig_r().begin(), request.sig_r().end(), sigR.bytes);
-    evm_uint256be sigS{{0}};
+    evmc_uint256be sigS{{0}};
     std::copy(request.sig_s().begin(), request.sig_s().end(), sigS.bytes);
 
     *sender = verifier_.ecrecover(rlp_hash, actualV, sigR, sigS);
@@ -908,38 +908,38 @@ uint64_t EthKvbCommandsHandler::parse_block_parameter(
 /**
  * Pass a transaction or call to the EVM for execution.
  */
-evm_result EthKvbCommandsHandler::run_evm(const EthRequest &request,
-                                          EthKvbStorage &kvbStorage,
-                                          uint64_t timestamp,
-                                          evm_uint256be &txhash /* OUT */) {
-  evm_message message;
-  evm_result result;
+evmc_result EthKvbCommandsHandler::run_evm(const EthRequest &request,
+                                           EthKvbStorage &kvbStorage,
+                                           uint64_t timestamp,
+                                           evmc_uint256be &txhash /* OUT */) {
+  evmc_message message;
+  evmc_result result;
 
   memset(&message, 0, sizeof(message));
   memset(&result, 0, sizeof(result));
 
   if (request.has_addr_from()) {
     if (request.addr_from().length() != sizeof(message.sender)) {
-      result.status_code = EVM_REJECTED;
+      result.status_code = EVMC_REJECTED;
       txhash = zero_hash;
       return result;
     }
     memcpy(message.sender.bytes, request.addr_from().c_str(), 20);
 
     if (request.has_sig_v() && request.has_sig_r() && request.has_sig_s()) {
-      evm_address sig_from;
+      evmc_address sig_from;
       recover_from(request, &sig_from);
 
       if (sig_from == zero_address) {
         LOG4CPLUS_DEBUG(logger, "Signature was invalid");
-        result.status_code = EVM_REJECTED;
+        result.status_code = EVMC_REJECTED;
         txhash = zero_hash;
         return result;
       }
 
       if (message.sender != sig_from) {
         LOG4CPLUS_DEBUG(logger, "Message sender does not match signature");
-        result.status_code = EVM_REJECTED;
+        result.status_code = EVMC_REJECTED;
         txhash = zero_hash;
         return result;
       }
@@ -948,7 +948,7 @@ evm_result EthKvbCommandsHandler::run_evm(const EthRequest &request,
     recover_from(request, &message.sender);
     if (message.sender == zero_address) {
       LOG4CPLUS_DEBUG(logger, "Signature was invalid");
-      result.status_code = EVM_REJECTED;
+      result.status_code = EVMC_REJECTED;
       txhash = zero_hash;
       return result;
     }
@@ -962,13 +962,13 @@ evm_result EthKvbCommandsHandler::run_evm(const EthRequest &request,
 
   if (request.has_value()) {
     size_t req_offset, val_offset;
-    if (request.value().size() > sizeof(evm_uint256be)) {
+    if (request.value().size() > sizeof(evmc_uint256be)) {
       // TODO: this should probably throw an error instead
-      req_offset = request.value().size() - sizeof(evm_uint256be);
+      req_offset = request.value().size() - sizeof(evmc_uint256be);
       val_offset = 0;
     } else {
       req_offset = 0;
-      val_offset = sizeof(evm_uint256be) - request.value().length();
+      val_offset = sizeof(evmc_uint256be) - request.value().length();
     }
     std::copy(request.value().begin() + req_offset, request.value().end(),
               message.value.bytes + val_offset);
@@ -998,16 +998,16 @@ evm_result EthKvbCommandsHandler::run_evm(const EthRequest &request,
   // If this is not a transaction, set flags to static so that execution is
   // prohibited from modifying state.
   if (kvbStorage.is_read_only()) {
-    message.flags |= EVM_STATIC;
+    message.flags |= EVMC_STATIC;
   }
 
   vector<EthLog> logs;
 
   if (request.has_addr_to()) {
-    message.kind = EVM_CALL;
+    message.kind = EVMC_CALL;
 
     if (request.addr_to().length() != sizeof(message.destination)) {
-      result.status_code = EVM_REJECTED;
+      result.status_code = EVMC_REJECTED;
       txhash = zero_hash;
       return result;
     }
@@ -1020,11 +1020,11 @@ evm_result EthKvbCommandsHandler::run_evm(const EthRequest &request,
                           message.destination);
     timing_evmrun_.End();
   } else {
-    message.kind = EVM_CREATE;
+    message.kind = EVMC_CREATE;
 
     assert(!kvbStorage.is_read_only());
 
-    evm_address contract_address =
+    evmc_address contract_address =
         concevm_.contract_destination(message.sender, nonce);
 
     stat_evmcreates_.Get().Inc();
@@ -1039,7 +1039,7 @@ evm_result EthKvbCommandsHandler::run_evm(const EthRequest &request,
                               << " gas_left: " << result.gas_left
                               << " output_size: " << result.output_size);
 
-  if (result.status_code != EVM_SUCCESS) {
+  if (result.status_code != EVMC_SUCCESS) {
     // If the transaction failed, don't record any of its side effects.
     // TODO: except gas deduction?
     kvbStorage.reset();
@@ -1060,23 +1060,23 @@ evm_result EthKvbCommandsHandler::run_evm(const EthRequest &request,
  * Increment the sender's nonce, Add the transaction and write a block with
  * it. Message call depth must be zero.
  */
-evm_uint256be EthKvbCommandsHandler::record_transaction(
-    const evm_message &message, const EthRequest &request, const uint64_t nonce,
-    const evm_result &result, const uint64_t timestamp,
+evmc_uint256be EthKvbCommandsHandler::record_transaction(
+    const evmc_message &message, const EthRequest &request,
+    const uint64_t nonce, const evmc_result &result, const uint64_t timestamp,
     const vector<EthLog> &logs, EthKvbStorage &kvbStorage) const {
   // "to" is empty if this was a create
-  evm_address to =
-      message.kind == EVM_CALL ? message.destination : zero_address;
-  evm_address create_address =
-      message.kind == EVM_CREATE ? result.create_address : zero_address;
+  evmc_address to =
+      message.kind == EVMC_CALL ? message.destination : zero_address;
+  evmc_address create_address =
+      message.kind == EVMC_CREATE ? result.create_address : zero_address;
 
   uint64_t gas_price = 0;
   if (request.has_gas_price()) {
     gas_price = request.gas_price();
   }
 
-  evm_uint256be sig_r{{0}};
-  evm_uint256be sig_s{{0}};
+  evmc_uint256be sig_r{{0}};
+  evmc_uint256be sig_s{{0}};
   uint64_t sig_v;
   if (request.has_sig_r() && request.has_sig_s() && request.has_sig_v()) {
     std::copy(request.sig_r().begin(), request.sig_r().end(), sig_r.bytes);
@@ -1114,7 +1114,7 @@ evm_uint256be EthKvbCommandsHandler::record_transaction(
   kvbStorage.add_transaction(tx);
   kvbStorage.set_nonce(message.sender, nonce + 1);
 
-  evm_uint256be txhash = tx.hash();
+  evmc_uint256be txhash = tx.hash();
   LOG4CPLUS_DEBUG(logger, "Recording transaction " << txhash);
 
   assert(message.depth == 0);

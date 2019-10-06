@@ -8,7 +8,7 @@
 #include <ios>
 
 #include "consensus/hex_tools.h"
-#include "evm.h"
+#include "evmjit.h"
 
 namespace concord {
 namespace common {
@@ -23,35 +23,35 @@ std::ostream& operator<<(std::ostream& s, const HexPrintBytes p) {
   return hexPrint(s, reinterpret_cast<const uint8_t*>(p.bytes), p.size);
 };
 
-// Print an evm_address as its 0x<hex> representation.
-std::ostream& operator<<(std::ostream& s, const evm_address& a) {
-  return hexPrint(s, a.bytes, sizeof(evm_address));
+// Print an evmc_address as its 0x<hex> representation.
+std::ostream& operator<<(std::ostream& s, const evmc_address& a) {
+  return hexPrint(s, a.bytes, sizeof(evmc_address));
 };
 
-// Print an evm_uint256be as its 0x<hex> representation.
-std::ostream& operator<<(std::ostream& s, const evm_uint256be& u) {
-  return hexPrint(s, u.bytes, sizeof(evm_uint256be));
+// Print an evmc_uint256be as its 0x<hex> representation.
+std::ostream& operator<<(std::ostream& s, const evmc_uint256be& u) {
+  return hexPrint(s, u.bytes, sizeof(evmc_uint256be));
 };
 
-std::ostream& operator<<(std::ostream& s, evm_call_kind kind) {
+std::ostream& operator<<(std::ostream& s, evmc_call_kind kind) {
   switch (kind) {
-    case EVM_CALL:
-      s << "EVM_CALL";
+    case EVMC_CALL:
+      s << "EVMC_CALL";
       break;
-    case EVM_DELEGATECALL:
-      s << "EVM_DELEGATECALL";
+    case EVMC_DELEGATECALL:
+      s << "EVMC_DELEGATECALL";
       break;
-    case EVM_CALLCODE:
-      s << "EVM_CALLCODE";
+    case EVMC_CALLCODE:
+      s << "EVMC_CALLCODE";
       break;
-    case EVM_CREATE:
-      s << "EVM_CREATE";
+    case EVMC_CREATE:
+      s << "EVMC_CREATE";
       break;
   }
   return s;
 }
 
-std::ostream& operator<<(std::ostream& s, struct evm_message msg) {
+std::ostream& operator<<(std::ostream& s, struct evmc_message msg) {
   s << "\nMessage: {\ndestination: " << msg.destination
     << "\nsender: " << msg.sender << "\nether: " << msg.value
     << "\ncall_kind: " << msg.kind << "\ndepth: " << msg.depth

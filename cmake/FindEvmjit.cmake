@@ -11,7 +11,7 @@ else(DEFINED EVM_INCLUDE_DIR_NOTFOUND)
    message(STATUS "Evmjit found at " ${Evmjit_INCLUDE_DIR})
    set(Evmjit_FOUND 1)
 
-   set(Evmjit_INCLUDE_DIRS ${Evmjit_INCLUDE_DIR})
+   set(Evmjit_INCLUDE_DIRS ${Evmjit_INCLUDE_DIR} ${Evmjit_INCLUDE_DIR}/../evmc/include)
    link_directories(${Evmjit_INCLUDE_DIR}/../build/libevmjit/
      ${Evmjit_INCLUDE_DIR}/../deps/lib/)
 if(APPLE)

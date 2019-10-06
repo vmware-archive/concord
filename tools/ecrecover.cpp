@@ -20,10 +20,10 @@ std::vector<uint8_t> next_part(RLPParser &parser, const char *label) {
   return parser.next();
 }
 
-std::string addr_to_string(evm_address a) {
+std::string addr_to_string(evmc_address a) {
   static const char hexes[] = "0123456789abcdef";
   std::string out;
-  for (size_t i = 0; i < sizeof(evm_address); i++) {
+  for (size_t i = 0; i < sizeof(evmc_address); i++) {
     out.append(hexes + (a.bytes[i] >> 4), 1)
         .append(hexes + (a.bytes[i] & 0x0f), 1);
   }
@@ -80,18 +80,18 @@ int main(int argc, char **argv) {
   uint64_t gas = uint_from_vector(gas_v, "start gas");
   uint64_t value = uint_from_vector(value_v, "value");
 
-  if (r_v.size() != sizeof(evm_uint256be)) {
+  if (r_v.size() != sizeof(evmc_uint256be)) {
     cout << "Signature R is too short (" << r_v.size() << ")" << endl;
     return -1;
   }
-  evm_uint256be r;
+  evmc_uint256be r;
   std::copy(r_v.begin(), r_v.end(), r.bytes);
 
-  if (s_v.size() != sizeof(evm_uint256be)) {
+  if (s_v.size() != sizeof(evmc_uint256be)) {
     cout << "Signature S is too short (" << s_v.size() << ")" << endl;
     return -1;
   }
-  evm_uint256be s;
+  evmc_uint256be s;
   std::copy(s_v.begin(), s_v.end(), s.bytes);
 
   // Figure out non-signed V
@@ -154,10 +154,10 @@ int main(int argc, char **argv) {
 
   // Recover Address
 
-  evm_uint256be unsignedTX_h =
+  evmc_uint256be unsignedTX_h =
       concord::utils::eth_hash::keccak_hash(unsignedTX);
   EthSign verifier;
-  evm_address from = verifier.ecrecover(unsignedTX_h, actualV, r, s);
+  evmc_address from = verifier.ecrecover(unsignedTX_h, actualV, r, s);
 
   cout << "Recovered: " << addr_to_string(from) << endl;
   return 0;

@@ -38,12 +38,12 @@ EVMInitParams::EVMInitParams(const std::string genesis_file_path)
     json alloc = genesis_block["alloc"];
     for (json::iterator it = alloc.begin(); it != alloc.end(); it++) {
       std::vector<uint8_t> address_v = dehex(it.key());
-      if (address_v.size() != sizeof(evm_address)) {
+      if (address_v.size() != sizeof(evmc_address)) {
         LOG4CPLUS_ERROR(
             logger, "Invalid account address: " << HexPrintVector{address_v});
         throw EVMInitParamException("Invalid 'alloc' section in genesis file");
       }
-      evm_address address;
+      evmc_address address;
       std::copy(address_v.begin(), address_v.end(), address.bytes);
 
       std::string balance_str = it.value()["balance"];
@@ -116,7 +116,7 @@ uint64_t EVMInitParams::parse_number(std::string label, std::string val_str) {
   return val;
 }
 
-const std::map<evm_address, evm_uint256be>
+const std::map<evmc_address, evmc_uint256be>
     &EVMInitParams::get_initial_accounts() const {
   return initial_accounts;
 }

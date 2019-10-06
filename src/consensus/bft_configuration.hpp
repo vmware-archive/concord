@@ -29,9 +29,9 @@ void initializeSBFTThresholdPublicKeys(
     IThresholdVerifier*& thresholdVerifierForCommit,
     IThresholdVerifier*& thresholdVerifierForOptimisticCommit) {
   concord::config::ConcordPrimaryConfigurationAuxiliaryState* auxState;
-  assert(auxState = dynamic_cast<
-             concord::config::ConcordPrimaryConfigurationAuxiliaryState*>(
-             config.getAuxiliaryState()));
+  auxState =
+      dynamic_cast<concord::config::ConcordPrimaryConfigurationAuxiliaryState*>(
+          config.getAuxiliaryState());
 
   if (supportDirectProofs) {
     assert(auxState->executionCryptosys);
@@ -70,9 +70,10 @@ void initializeSBFTThresholdPrivateKeys(
     IThresholdSigner*& thresholdSignerForOptimisticCommit,
     bool supportDirectProofs) {
   concord::config::ConcordPrimaryConfigurationAuxiliaryState* auxState;
-  assert(auxState = dynamic_cast<
-             concord::config::ConcordPrimaryConfigurationAuxiliaryState*>(
-             config.getAuxiliaryState()));
+  auxState =
+      dynamic_cast<concord::config::ConcordPrimaryConfigurationAuxiliaryState*>(
+          config.getAuxiliaryState());
+  assert(auxState);
 
   // f + 1
   if (supportDirectProofs) {

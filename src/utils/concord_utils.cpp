@@ -48,24 +48,24 @@ vector<uint8_t> dehex(const std::string &str) {
   return ret;
 }
 
-/** Converts the given uint64_t into a evm_uint256be type
+/** Converts the given uint64_t into a evmc_uint256be type
     The top 24 bytes are always going to be 0 in this conversion
 */
-void to_evm_uint256be(uint64_t val, evm_uint256be *ret) {
+void to_evmc_uint256be(uint64_t val, evmc_uint256be *ret) {
   uint8_t mask = 0xff;
-  for (size_t i = 0; i < sizeof(evm_uint256be); i++) {
+  for (size_t i = 0; i < sizeof(evmc_uint256be); i++) {
     uint8_t byte = val & mask;
-    ret->bytes[sizeof(evm_uint256be) - i - 1] = byte;  // big endian order
+    ret->bytes[sizeof(evmc_uint256be) - i - 1] = byte;  // big endian order
     val = val >> 8;
   }
 }
 
-/** Converts the given evm_uint256be into a uint64_t, if the value of
+/** Converts the given evmc_uint256be into a uint64_t, if the value of
     @val is more than 2^64 then return value will simply contain the
     lower 8 bytes of @val
 */
-uint64_t from_evm_uint256be(const evm_uint256be *val) {
-  const size_t offset = sizeof(evm_uint256be) - sizeof(uint64_t);
+uint64_t from_evmc_uint256be(const evmc_uint256be *val) {
+  const size_t offset = sizeof(evmc_uint256be) - sizeof(uint64_t);
   uint64_t ret = 0;
   for (size_t i = 0; i < sizeof(uint64_t); i++) {
     ret = ret << 8;
@@ -82,20 +82,20 @@ int64_t get_epoch_millis() {
   return res;
 }
 
-uint256_t to_uint256_t(const evm_uint256be *val) {
+uint256_t to_uint256_t(const evmc_uint256be *val) {
   uint256_t out{0};
   assert(val != nullptr);
-  std::vector<uint8_t> val_v(val->bytes, val->bytes + sizeof(evm_uint256be));
+  std::vector<uint8_t> val_v(val->bytes, val->bytes + sizeof(evmc_uint256be));
   import_bits(out, val_v.begin(), val_v.end());
   return out;
 }
 
-evm_uint256be from_uint256_t(const uint256_t *val) {
-  evm_uint256be out{0};
+evmc_uint256be from_uint256_t(const uint256_t *val) {
+  evmc_uint256be out{0};
   std::vector<uint8_t> val_v;
   assert(val != nullptr);
   export_bits(*val, std::back_inserter(val_v), 8);
-  while (val_v.size() < sizeof(evm_uint256be)) {
+  while (val_v.size() < sizeof(evmc_uint256be)) {
     val_v.insert(val_v.begin(), 0);
   }
   memcpy(out.bytes, val_v.data(), val_v.size());

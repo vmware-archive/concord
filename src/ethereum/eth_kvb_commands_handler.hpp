@@ -111,24 +111,24 @@ class EthKvbCommandsHandler
 
   // Utilites
   void build_transaction_response(
-      evm_uint256be &hash, concord::common::EthTransaction &tx,
+      evmc_uint256be &hash, concord::common::EthTransaction &tx,
       com::vmware::concord::TransactionResponse *response) const;
 
   void recover_from(const com::vmware::concord::EthRequest &request,
-                    evm_address *sender) const;
+                    evmc_address *sender) const;
 
   uint64_t parse_block_parameter(
       const com::vmware::concord::EthRequest &request,
       EthKvbStorage &kvbStorage) const;
 
-  evm_result run_evm(const com::vmware::concord::EthRequest &request,
-                     EthKvbStorage &kvbStorage, uint64_t timestamp,
-                     evm_uint256be &txhash /* OUT */);
+  evmc_result run_evm(const com::vmware::concord::EthRequest &request,
+                      EthKvbStorage &kvbStorage, uint64_t timestamp,
+                      evmc_uint256be &txhash /* OUT */);
 
-  evm_uint256be record_transaction(
-      const evm_message &message,
+  evmc_uint256be record_transaction(
+      const evmc_message &message,
       const com::vmware::concord::EthRequest &request, const uint64_t nonce,
-      const evm_result &result, const uint64_t timestamp,
+      const evmc_result &result, const uint64_t timestamp,
       const std::vector<::concord::common::EthLog> &logs,
       EthKvbStorage &kvbStorage) const;
 

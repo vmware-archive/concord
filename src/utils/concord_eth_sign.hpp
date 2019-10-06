@@ -9,7 +9,7 @@
 #include <log4cplus/loggingmacros.h>
 #include <secp256k1.h>
 
-#include "evm.h"
+#include "evmjit.h"
 
 namespace concord {
 namespace utils {
@@ -19,11 +19,11 @@ class EthSign {
   EthSign();
   ~EthSign();
 
-  std::vector<uint8_t> sign(const evm_uint256be hash,
-                            const evm_uint256be key) const;
+  std::vector<uint8_t> sign(const evmc_uint256be hash,
+                            const evmc_uint256be key) const;
 
-  evm_address ecrecover(const evm_uint256be hash, const uint8_t version,
-                        const evm_uint256be r, const evm_uint256be s) const;
+  evmc_address ecrecover(const evmc_uint256be hash, const uint8_t version,
+                         const evmc_uint256be r, const evmc_uint256be s) const;
 
  private:
   log4cplus::Logger logger;

@@ -20,10 +20,10 @@ std::vector<uint8_t> next_part(RLPParser &parser, const char *label) {
   return parser.next();
 }
 
-std::string addr_to_string(evm_address a) {
+std::string addr_to_string(evmc_address a) {
   static const char hexes[] = "0123456789abcdef";
   std::string out;
-  for (size_t i = 0; i < sizeof(evm_address); i++) {
+  for (size_t i = 0; i < sizeof(evmc_address); i++) {
     out.append(hexes + (a.bytes[i] >> 4), 1)
         .append(hexes + (a.bytes[i] & 0x0f), 1);
   }
@@ -65,12 +65,12 @@ int main(int argc, char **argv) {
 
   string key_s(argv[2]);
   vector<uint8_t> key_v = dehex(key_s);
-  if (key_v.size() != sizeof(evm_uint256be)) {
+  if (key_v.size() != sizeof(evmc_uint256be)) {
     cerr << "Key hex not long enough (is " << key_v.size() << " bytes, must be "
-         << sizeof(evm_uint256be) << " bytes)" << endl;
+         << sizeof(evmc_uint256be) << " bytes)" << endl;
     return -1;
   }
-  evm_uint256be key;
+  evmc_uint256be key;
   std::copy(key_v.begin(), key_v.end(), key.bytes);
 
   // Decode RLP
@@ -175,13 +175,13 @@ int main(int argc, char **argv) {
 
   // Sign
 
-  evm_uint256be txhash = concord::utils::eth_hash::keccak_hash(tx);
+  evmc_uint256be txhash = concord::utils::eth_hash::keccak_hash(tx);
   EthSign verifier;
   std::vector<uint8_t> signature = verifier.sign(txhash, key);
 
-  if (signature.size() != 1 + 2 * sizeof(evm_uint256be)) {
+  if (signature.size() != 1 + 2 * sizeof(evmc_uint256be)) {
     cerr << "Signature is not expected length (was " << signature.size()
-         << " bytes, expected " << (1 + 2 * sizeof(evm_uint256be)) << ")"
+         << " bytes, expected " << (1 + 2 * sizeof(evmc_uint256be)) << ")"
          << endl;
     return -1;
   }
@@ -189,10 +189,10 @@ int main(int argc, char **argv) {
   uint64_t v = signature[0];
   std::vector<uint8_t> r;
   std::copy(signature.begin() + 1,
-            signature.begin() + 1 + sizeof(evm_uint256be),
+            signature.begin() + 1 + sizeof(evmc_uint256be),
             std::back_inserter(r));
   std::vector<uint8_t> s;
-  std::copy(signature.begin() + 1 + sizeof(evm_uint256be), signature.end(),
+  std::copy(signature.begin() + 1 + sizeof(evmc_uint256be), signature.end(),
             std::back_inserter(s));
 
   if (v > 1) {
