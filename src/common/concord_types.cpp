@@ -22,10 +22,10 @@ using com::vmware::concord::kvb::Log;
 using com::vmware::concord::kvb::Transaction;
 using concord::utils::RLPBuilder;
 
-// Byte-wise comparator for evm_uint256be. This allows us to use this type as a
+// Byte-wise comparator for evmc_uint256be. This allows us to use this type as a
 // key in a std::map. Must be in the global namespace.
-bool operator<(const evm_uint256be &a, const evm_uint256be &b) {
-  for (size_t i = 0; i < sizeof(evm_uint256be); ++i) {
+bool operator<(const evmc_uint256be &a, const evmc_uint256be &b) {
+  for (size_t i = 0; i < sizeof(evmc_uint256be); ++i) {
     if (a.bytes[i] < b.bytes[i]) {
       return true;
     } else if (a.bytes[i] > b.bytes[i]) {
@@ -36,18 +36,18 @@ bool operator<(const evm_uint256be &a, const evm_uint256be &b) {
   return false;
 }
 
-bool operator!=(const evm_uint256be &a, const evm_uint256be &b) {
+bool operator!=(const evmc_uint256be &a, const evmc_uint256be &b) {
   return !(a == b);
 }
 
-bool operator==(const evm_uint256be &a, const evm_uint256be &b) {
-  return memcmp(a.bytes, b.bytes, sizeof(evm_uint256be)) == 0;
+bool operator==(const evmc_uint256be &a, const evmc_uint256be &b) {
+  return memcmp(a.bytes, b.bytes, sizeof(evmc_uint256be)) == 0;
 }
 
-// Byte-wise comparator for evm_address. This allows us to use this type as a
+// Byte-wise comparator for evmc_address. This allows us to use this type as a
 // key in a std::map. Must be in the global namespace.
-bool operator<(const evm_address &a, const evm_address &b) {
-  for (size_t i = 0; i < sizeof(evm_address); ++i) {
+bool operator<(const evmc_address &a, const evmc_address &b) {
+  for (size_t i = 0; i < sizeof(evmc_address); ++i) {
     if (a.bytes[i] < b.bytes[i]) {
       return true;
     } else if (a.bytes[i] > b.bytes[i]) {
@@ -58,12 +58,12 @@ bool operator<(const evm_address &a, const evm_address &b) {
   return false;
 }
 
-bool operator!=(const evm_address &a, const evm_address &b) {
+bool operator!=(const evmc_address &a, const evmc_address &b) {
   return !(a == b);
 }
 
-bool operator==(const evm_address &a, const evm_address &b) {
-  return memcmp(a.bytes, b.bytes, sizeof(evm_address)) == 0;
+bool operator==(const evmc_address &a, const evmc_address &b) {
+  return memcmp(a.bytes, b.bytes, sizeof(evmc_address)) == 0;
 }
 
 namespace concord {
@@ -82,12 +82,12 @@ std::vector<uint8_t> EthTransaction::rlp() const {
   // `value` is a QUANTITY and hence doesn't allow leading zeroes.
   // Note: This is a big endian type which means that value.bytes[0] is the MSB
   size_t i = 0;
-  for (; i < sizeof(evm_uint256be); ++i) {
+  for (; i < sizeof(evmc_uint256be); ++i) {
     if (this->value.bytes[i] != 0x00) {
       break;
     }
   }
-  rlpb.add(&this->value.bytes[i], sizeof(evm_uint256be) - i);
+  rlpb.add(&this->value.bytes[i], sizeof(evmc_uint256be) - i);
 
   if (this->to == zero_address) {
     // when deploying a contract, the 'to' addresss is empty, hence to insert
@@ -108,7 +108,7 @@ std::vector<uint8_t> EthTransaction::rlp() const {
 /**
  * Compute the hash which will be used to reference the transaction.
  */
-evm_uint256be EthTransaction::hash() const {
+evmc_uint256be EthTransaction::hash() const {
   return concord::utils::eth_hash::keccak_hash(this->rlp());
 }
 
@@ -135,7 +135,7 @@ size_t EthTransaction::serialize(uint8_t **serialized) {
   }
 
   out.set_status(this->status);
-  out.set_value(this->value.bytes, sizeof(evm_uint256be));
+  out.set_value(this->value.bytes, sizeof(evmc_uint256be));
   out.set_gas_price(this->gas_price);
   out.set_gas_limit(this->gas_limit);
   out.set_gas_used(this->gas_used);
@@ -145,9 +145,9 @@ size_t EthTransaction::serialize(uint8_t **serialized) {
 
   for (EthLog &log : this->logs) {
     Log *outlog = out.add_log();
-    outlog->set_address(log.address.bytes, sizeof(evm_address));
-    for (evm_uint256be topic : log.topics) {
-      outlog->add_topic(topic.bytes, sizeof(evm_uint256be));
+    outlog->set_address(log.address.bytes, sizeof(evmc_address));
+    for (evmc_uint256be topic : log.topics) {
+      outlog->add_topic(topic.bytes, sizeof(evmc_uint256be));
     }
     if (log.data.size() > 0) {
       outlog->set_data(std::string(log.data.begin(), log.data.end()));
@@ -201,7 +201,7 @@ struct EthTransaction EthTransaction::deserialize(
                 std::back_inserter(outtx.input));
     }
 
-    outtx.status = static_cast<evm_status_code>(intx.status());
+    outtx.status = static_cast<evmc_status_code>(intx.status());
     std::copy(intx.value().begin(), intx.value().end(), outtx.value.bytes);
 
     if (intx.has_gas_price()) {
@@ -243,12 +243,12 @@ struct EthTransaction EthTransaction::deserialize(
     for (int i = 0; i < intx.log_size(); i++) {
       Log inlog = intx.log(i);
 
-      evm_address addr;
+      evmc_address addr;
       std::copy(inlog.address().begin(), inlog.address().end(), addr.bytes);
 
-      std::vector<evm_uint256be> topics;
+      std::vector<evmc_uint256be> topics;
       for (int j = 0; j < inlog.topic_size(); j++) {
-        evm_uint256be topic;
+        evmc_uint256be topic;
         std::copy(inlog.topic(j).begin(), inlog.topic(j).end(), topic.bytes);
         topics.push_back(topic);
       }
@@ -274,7 +274,7 @@ struct EthTransaction EthTransaction::deserialize(
 /**
  * Compute the hash which will be used to reference the transaction.
  */
-evm_uint256be EthBlock::get_hash() const {
+evmc_uint256be EthBlock::get_hash() const {
   /*
    * WARNING: This is not the same as Ethereum's block hash right now,
    * but is instead an approximation, in order to provide something to fill API
@@ -310,7 +310,7 @@ size_t EthBlock::serialize(uint8_t **serialized) {
   out.set_parent_hash(this->parent_hash.bytes, sizeof(this->parent_hash));
 
   for (auto t : this->transactions) {
-    out.add_transaction(t.bytes, sizeof(evm_uint256be));
+    out.add_transaction(t.bytes, sizeof(evmc_uint256be));
   }
 
   out.set_timestamp(this->timestamp);
@@ -338,12 +338,12 @@ struct EthBlock EthBlock::deserialize(concord::consensus::Sliver &input) {
 
     for (int i = 0; i < inblk.transaction_size(); i++) {
       std::string txhashstr = inblk.transaction(i);
-      if (txhashstr.size() != sizeof(evm_uint256be)) {
+      if (txhashstr.size() != sizeof(evmc_uint256be)) {
         LOG4CPLUS_ERROR(log4cplus::Logger::getInstance("com.vmware.concord"),
                         "Invalid hash length " << txhashstr.size());
         throw EVMException("Invalid transaction hash length");
       }
-      evm_uint256be txhash;
+      evmc_uint256be txhash;
       std::copy(txhashstr.begin(), txhashstr.end(), txhash.bytes);
       outblk.transactions.push_back(txhash);
     }

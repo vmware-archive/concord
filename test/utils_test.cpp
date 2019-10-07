@@ -10,10 +10,10 @@ using namespace std;
 using json = nlohmann::json;
 using boost::multiprecision::uint256_t;
 
-using concord::utils::from_evm_uint256be;
+using concord::utils::from_evmc_uint256be;
 using concord::utils::from_uint256_t;
 using concord::utils::RLPBuilder;
-using concord::utils::to_evm_uint256be;
+using concord::utils::to_evmc_uint256be;
 using concord::utils::to_uint256_t;
 
 namespace {
@@ -125,10 +125,10 @@ TEST(rlp_test, example_lipsum) {
   EXPECT_EQ(expect, rlpb.build());
 }
 
-TEST(utils_test, to_evm_uint256be_test) {
+TEST(utils_test, to_evmc_uint256be_test) {
   uint64_t val = 0xabcd1234;
-  evm_uint256be expected;
-  to_evm_uint256be(val, &expected);
+  evmc_uint256be expected;
+  to_evmc_uint256be(val, &expected);
   EXPECT_EQ(expected.bytes[31], 0x34);
   EXPECT_EQ(expected.bytes[30], 0x12);
   EXPECT_EQ(expected.bytes[29], 0xcd);
@@ -138,9 +138,9 @@ TEST(utils_test, to_evm_uint256be_test) {
   }
 }
 
-TEST(utils_test, from_evm_uint256be_test) {
+TEST(utils_test, from_evmc_uint256be_test) {
   uint64_t expected = 0x12121212abcd1234;
-  evm_uint256be val;
+  evmc_uint256be val;
   for (int i = 0; i < 28; i++) {
     val.bytes[i] = 0x12;
   }
@@ -148,11 +148,11 @@ TEST(utils_test, from_evm_uint256be_test) {
   val.bytes[29] = 0xcd;
   val.bytes[30] = 0x12;
   val.bytes[31] = 0x34;
-  EXPECT_EQ(expected, from_evm_uint256be(&val));
+  EXPECT_EQ(expected, from_evmc_uint256be(&val));
 }
 
 TEST(utils_test, to_uint256_t_test) {
-  evm_uint256be input{0};
+  evmc_uint256be input{0};
   input.bytes[31] = 0xef;
   input.bytes[30] = 0xbe;
   input.bytes[29] = 0xad;
@@ -165,13 +165,13 @@ TEST(utils_test, to_uint256_t_test) {
 TEST(utils_test, from_uint256_t_test) {
   uint256_t input{"0xdeadbeef"};
 
-  evm_uint256be expected{0};
+  evmc_uint256be expected{0};
   expected.bytes[31] = 0xef;
   expected.bytes[30] = 0xbe;
   expected.bytes[29] = 0xad;
   expected.bytes[28] = 0xde;
-  evm_uint256be out = from_uint256_t(&input);
-  EXPECT_EQ(0, memcmp(expected.bytes, out.bytes, sizeof(evm_uint256be)));
+  evmc_uint256be out = from_uint256_t(&input);
+  EXPECT_EQ(0, memcmp(expected.bytes, out.bytes, sizeof(evmc_uint256be)));
 }
 
 }  // namespace

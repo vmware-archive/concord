@@ -8,7 +8,7 @@
 
 #include <memory>
 #include <vector>
-#include "evm.h"
+#include "evmjit.h"
 
 namespace concord {
 namespace utils {
@@ -18,8 +18,8 @@ class RLPBuilder {
   void add(const std::vector<uint8_t> &vec);
   void add(const uint8_t *data, size_t size);
   void add(const std::string &str);
-  void add(const evm_address &address);
-  void add(const evm_uint256be &uibe);
+  void add(const evmc_address &address);
+  void add(const evmc_uint256be &uibe);
   void add(uint64_t number);
   void start_list();
   void end_list();

@@ -12,7 +12,7 @@
 #include <stdexcept>
 #include <vector>
 #include "common/concord_types.hpp"
-#include "evm.h"
+#include "evmjit.h"
 #include "utils/concord_utils.hpp"
 #include "utils/json.hpp"
 
@@ -35,7 +35,7 @@ class EVMInitParams {
   explicit EVMInitParams(std::string genesis_file_path);
   nlohmann::json parse_genesis_block(std::string genesis_file_path);
   uint64_t parse_number(std::string label, std::string time_str);
-  const std::map<evm_address, evm_uint256be>& get_initial_accounts() const;
+  const std::map<evmc_address, evmc_uint256be>& get_initial_accounts() const;
   uint64_t get_chainID() const;
   uint64_t get_timestamp() const;
   uint64_t get_gas_limit() const;
@@ -50,7 +50,7 @@ class EVMInitParams {
   // This was the former static value used for the gas limit.
   uint64_t gasLimit = 1000000;
   // The map of initial accounts with their preset balance values
-  std::map<evm_address, evm_uint256be> initial_accounts;
+  std::map<evmc_address, evmc_uint256be> initial_accounts;
 
   log4cplus::Logger logger;
 };

@@ -15,7 +15,7 @@ namespace concord {
 namespace utils {
 
 // TODO: sort out build structure, to pull this from concord_types
-const evm_address zero_address{{0}};
+const evmc_address zero_address{{0}};
 
 EthSign::EthSign()
     : logger(log4cplus::Logger::getInstance("com.vmware.concord.eth_sign")) {
@@ -28,8 +28,8 @@ EthSign::~EthSign() { secp256k1_context_destroy(ctx); }
 /**
  * Sign hash with private key.
  */
-std::vector<uint8_t> EthSign::sign(const evm_uint256be hash,
-                                   const evm_uint256be key) const {
+std::vector<uint8_t> EthSign::sign(const evmc_uint256be hash,
+                                   const evmc_uint256be key) const {
   std::vector<uint8_t> serializedSignature;
   secp256k1_ecdsa_recoverable_signature signature;
 
@@ -54,9 +54,9 @@ std::vector<uint8_t> EthSign::sign(const evm_uint256be hash,
 /**
  * Recover the "from" address from a transaction signature.
  */
-evm_address EthSign::ecrecover(const evm_uint256be hash, const uint8_t version,
-                               const evm_uint256be r,
-                               const evm_uint256be s) const {
+evmc_address EthSign::ecrecover(const evmc_uint256be hash,
+                                const uint8_t version, const evmc_uint256be r,
+                                const evmc_uint256be s) const {
   // parse_compact supports 0-3, but Ethereum is documented as only using 0 and
   // 1
   if (version > 1) {
@@ -64,9 +64,9 @@ evm_address EthSign::ecrecover(const evm_uint256be hash, const uint8_t version,
   }
 
   std::vector<uint8_t> signature;
-  std::copy(r.bytes, r.bytes + sizeof(evm_uint256be),
+  std::copy(r.bytes, r.bytes + sizeof(evmc_uint256be),
             std::back_inserter(signature));
-  std::copy(s.bytes, s.bytes + sizeof(evm_uint256be),
+  std::copy(s.bytes, s.bytes + sizeof(evmc_uint256be),
             std::back_inserter(signature));
 
   secp256k1_ecdsa_recoverable_signature ecsig;
@@ -89,12 +89,12 @@ evm_address EthSign::ecrecover(const evm_uint256be hash, const uint8_t version,
   assert(pubkeysize == 65);
   assert(pubkeysize > 1);
   // skip the version byte at [0]
-  evm_uint256be pubkeyhash =
+  evmc_uint256be pubkeyhash =
       eth_hash::keccak_hash((uint8_t*)(pubkey + 1), pubkeysize - 1);
 
-  evm_address address;
-  std::copy(pubkeyhash.bytes + (sizeof(evm_uint256be) - sizeof(evm_address)),
-            pubkeyhash.bytes + sizeof(evm_uint256be), address.bytes);
+  evmc_address address;
+  std::copy(pubkeyhash.bytes + (sizeof(evmc_uint256be) - sizeof(evmc_address)),
+            pubkeyhash.bytes + sizeof(evmc_uint256be), address.bytes);
 
   return address;
 }
@@ -104,7 +104,7 @@ evm_address EthSign::ecrecover(const evm_uint256be hash, const uint8_t version,
  */
 // bool com::vmware::concord::EthSign::ecverify(const EthTransaction &tx) const
 // {
-//    evm_address recoveredAddr = ecrecover(tx.hash(), tx.sig_v, tx.sig_r,
+//    evmc_address recoveredAddr = ecrecover(tx.hash(), tx.sig_v, tx.sig_r,
 //    tx.sig_s); return recoveredAddr != zero_address && recoveredAddr ==
 //    tx.from;
 // }

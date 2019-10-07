@@ -76,14 +76,14 @@ void RLPBuilder::add(const std::string &str) {
   add_string_size(str.size());
 }
 
-void RLPBuilder::add(const evm_address &address) {
+void RLPBuilder::add(const evmc_address &address) {
   assert(!finished);
-  add(address.bytes, sizeof(evm_address));
+  add(address.bytes, sizeof(evmc_address));
 }
 
-void RLPBuilder::add(const evm_uint256be &uibe) {
+void RLPBuilder::add(const evmc_uint256be &uibe) {
   assert(!finished);
-  add(uibe.bytes, sizeof(evm_uint256be));
+  add(uibe.bytes, sizeof(evmc_uint256be));
 }
 
 void RLPBuilder::add(uint64_t number) {

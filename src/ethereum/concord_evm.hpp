@@ -11,8 +11,8 @@
 #include <memory>
 #include <vector>
 #include "common/concord_types.hpp"
-#include "evm.h"
 #include "evm_init_params.hpp"
+#include "evmjit.h"
 #include "utils/concord_utils.hpp"
 
 namespace concord {
@@ -32,7 +32,7 @@ extern "C" {
  */
 typedef struct concord_context {
   /** evmctx must be first, so we can cast to our wrapper */
-  struct evm_context evmctx;
+  struct evmc_context evmctx;
   class EVM* conc_object;
   class EthKvbStorage* kvbStorage;
   std::vector<::concord::common::EthLog>* evmLogs;
@@ -40,54 +40,57 @@ typedef struct concord_context {
   uint64_t timestamp;
 
   // Stash to answer ORIGIN opcode. This starts with the same value as
-  // evm_message.sender, but sender changes as contracts call other contracts,
+  // evmc_message.sender, but sender changes as contracts call other contracts,
   // while origin always points to the same address.
-  struct evm_address origin;
+  struct evmc_address origin;
 
   // Which contract we're actually using for storage. This is usually the
   // contract being called, but may be the contract doing the calling during
   // CALLCODE and DELEGATECALL.
-  struct evm_address storage_contract;
+  struct evmc_address storage_contract;
 } concord_context;
 
-EVM* conc_object(const struct evm_context* evmctx);
-const concord_context* conc_context(const struct evm_context* evmctx);
+EVM* conc_object(const struct evmc_context* evmctx);
+const concord_context* conc_context(const struct evmc_context* evmctx);
 
-int conc_account_exists(struct evm_context* evmctx,
-                        const struct evm_address* address);
-void conc_get_storage(struct evm_uint256be* result, struct evm_context* evmctx,
-                      const struct evm_address* address,
-                      const struct evm_uint256be* key);
-void conc_set_storage(struct evm_context* evmctx,
-                      const struct evm_address* address,
-                      const struct evm_uint256be* key,
-                      const struct evm_uint256be* value);
-void conc_get_balance(struct evm_uint256be* result, struct evm_context* evmctx,
-                      const struct evm_address* address);
-size_t conc_get_code_size(struct evm_context* evmctx,
-                          const struct evm_address* address);
-size_t conc_get_code(const uint8_t** result_code, struct evm_context* evmctx,
-                     const struct evm_address* address);
-void conc_selfdestruct(struct evm_context* evmctx,
-                       const struct evm_address* address,
-                       const struct evm_address* beneficiary);
-void conc_emit_log(struct evm_context* evmctx,
-                   const struct evm_address* address, const uint8_t* data,
-                   size_t data_size, const struct evm_uint256be topics[],
+int conc_account_exists(struct evmc_context* evmctx,
+                        const struct evmc_address* address);
+void conc_get_storage(struct evmc_uint256be* result,
+                      struct evmc_context* evmctx,
+                      const struct evmc_address* address,
+                      const struct evmc_uint256be* key);
+void conc_set_storage(struct evmc_context* evmctx,
+                      const struct evmc_address* address,
+                      const struct evmc_uint256be* key,
+                      const struct evmc_uint256be* value);
+void conc_get_balance(struct evmc_uint256be* result,
+                      struct evmc_context* evmctx,
+                      const struct evmc_address* address);
+size_t conc_get_code_size(struct evmc_context* evmctx,
+                          const struct evmc_address* address);
+size_t conc_copy_code(struct evmc_context* evmctx,
+                      const struct evmc_address* address, size_t code_offset,
+                      uint8_t* buffer_data, size_t buffer_size);
+void conc_selfdestruct(struct evmc_context* evmctx,
+                       const struct evmc_address* address,
+                       const struct evmc_address* beneficiary);
+void conc_emit_log(struct evmc_context* evmctx,
+                   const struct evmc_address* address, const uint8_t* data,
+                   size_t data_size, const struct evmc_uint256be topics[],
                    size_t topics_count);
-void conc_call(struct evm_result* result, struct evm_context* evmctx,
-               const struct evm_message* msg);
-void conc_get_block_hash(struct evm_uint256be* result,
-                         struct evm_context* evmctx, int64_t number);
-void conc_get_tx_context(struct evm_tx_context* result,
-                         struct evm_context* evmctx);
+void conc_call(struct evmc_result* result, struct evmc_context* evmctx,
+               const struct evmc_message* msg);
+void conc_get_block_hash(struct evmc_uint256be* result,
+                         struct evmc_context* evmctx, int64_t number);
+void conc_get_tx_context(struct evmc_tx_context* result,
+                         struct evmc_context* evmctx);
 
 /*
  * Function dispatch table for EVM. Specified by EEI.
  */
-const static struct evm_context_fn_table concord_fn_table = {
+const static struct evmc_context_fn_table concord_fn_table = {
     conc_account_exists, conc_get_storage,   conc_set_storage,
-    conc_get_balance,    conc_get_code_size, conc_get_code,
+    conc_get_balance,    conc_get_code_size, conc_copy_code,
     conc_selfdestruct,   conc_call,          conc_get_tx_context,
     conc_get_block_hash, conc_emit_log};
 }
@@ -98,32 +101,32 @@ class EVM {
   ~EVM();
 
   /* Concord API */
-  void transfer_fund(evm_message& message, EthKvbStorage& kvbStorage,
-                     evm_result& result);
-  evm_result run(evm_message& message, uint64_t timestamp,
-                 EthKvbStorage& kvbStorage,
-                 std::vector<::concord::common::EthLog>& evmLogs,
-                 const evm_address& origin,
-                 const evm_address& storage_contract);
-  evm_result create(evm_address& contract_address, evm_message& message,
-                    uint64_t timestamp, EthKvbStorage& kvbStorage,
-                    std::vector<::concord::common::EthLog>& evmLogs,
-                    const evm_address& origin);
-  evm_address contract_destination(evm_address& sender, uint64_t nonce) const;
+  void transfer_fund(evmc_message& message, EthKvbStorage& kvbStorage,
+                     evmc_result& result);
+  evmc_result run(evmc_message& message, uint64_t timestamp,
+                  EthKvbStorage& kvbStorage,
+                  std::vector<::concord::common::EthLog>& evmLogs,
+                  const evmc_address& origin,
+                  const evmc_address& storage_contract);
+  evmc_result create(evmc_address& contract_address, evmc_message& message,
+                     uint64_t timestamp, EthKvbStorage& kvbStorage,
+                     std::vector<::concord::common::EthLog>& evmLogs,
+                     const evmc_address& origin);
+  evmc_address contract_destination(evmc_address& sender, uint64_t nonce) const;
 
  private:
-  evm_instance* evminst;
+  evmc_instance* evminst;
   log4cplus::Logger logger;
 
   // chain to which we are connected
   uint64_t chainId;
 
-  evm_result execute(evm_message& message, uint64_t timestamp,
-                     EthKvbStorage& kvbStorage,
-                     std::vector<::concord::common::EthLog>& evmLogs,
-                     const std::vector<uint8_t>& code,
-                     const evm_address& origin,
-                     const evm_address& storage_contract);
+  evmc_result execute(evmc_message& message, uint64_t timestamp,
+                      EthKvbStorage& kvbStorage,
+                      std::vector<::concord::common::EthLog>& evmLogs,
+                      const std::vector<uint8_t>& code,
+                      const evmc_address& origin,
+                      const evmc_address& storage_contract);
 };
 
 }  // namespace ethereum

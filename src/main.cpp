@@ -159,7 +159,7 @@ concord::consensus::Status create_genesis_block(IReplica *replica,
     return concord::consensus::Status::OK();
   }
 
-  std::map<evm_address, evm_uint256be> genesis_acts =
+  std::map<evmc_address, evmc_uint256be> genesis_acts =
       params.get_initial_accounts();
   uint64_t nonce = 0;
   uint64_t chainID = params.get_chainID();
@@ -174,7 +174,7 @@ concord::consensus::Status create_genesis_block(IReplica *replica,
         it->first,               // to
         zero_address,            // contract_address
         std::vector<uint8_t>(),  // input
-        EVM_SUCCESS,             // status
+        EVMC_SUCCESS,            // status
         it->second,              // value
         0,                       // gas_price
         0,                       // gas_limit
@@ -184,7 +184,7 @@ concord::consensus::Status create_genesis_block(IReplica *replica,
         zero_hash,          // sig_s (no signature for genesis)
         (chainID * 2 + 35)  // sig_v
     };
-    evm_uint256be txhash = tx.hash();
+    evmc_uint256be txhash = tx.hash();
     LOG4CPLUS_INFO(logger, "Created genesis transaction "
                                << txhash << " to address " << it->first
                                << " with value = " << tx.value);

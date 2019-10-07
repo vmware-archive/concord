@@ -7,14 +7,14 @@
 #define UTILS_CONCORD_ETH_HASH_HPP
 
 #include <log4cplus/loggingmacros.h>
-#include "evm.h"
+#include "evmjit.h"
 
 namespace concord {
 namespace utils {
 namespace eth_hash {
 
-evm_uint256be keccak_hash(const std::vector<uint8_t> &data);
-evm_uint256be keccak_hash(const uint8_t *data, size_t size);
+evmc_uint256be keccak_hash(const std::vector<uint8_t> &data);
+evmc_uint256be keccak_hash(const uint8_t *data, size_t size);
 
 }  // namespace eth_hash
 }  // namespace utils

@@ -13,7 +13,7 @@
 #include "concmdopt.hpp"
 #include "concord.pb.h"
 
-#include "evm.h"
+#include "evmjit.h"
 
 using namespace boost::program_options;
 using namespace com::vmware::concord;
@@ -34,29 +34,29 @@ void add_options(options_description &desc) {
 
 std::string status_to_string(int32_t status) {
   switch (status) {
-    case EVM_SUCCESS:
+    case EVMC_SUCCESS:
       return "(success)";
-    case EVM_FAILURE:
+    case EVMC_FAILURE:
       return "(failure)";
-    case EVM_OUT_OF_GAS:
+    case EVMC_OUT_OF_GAS:
       return "(out of gas)";
-    case EVM_UNDEFINED_INSTRUCTION:
+    case EVMC_UNDEFINED_INSTRUCTION:
       return "(undefined instruction)";
-    case EVM_BAD_JUMP_DESTINATION:
+    case EVMC_BAD_JUMP_DESTINATION:
       return "(bad jump destination)";
-    case EVM_STACK_OVERFLOW:
+    case EVMC_STACK_OVERFLOW:
       return "(stack overflow)";
-    case EVM_REVERT:
+    case EVMC_REVERT:
       return "(revert)";
-    case EVM_STATIC_MODE_ERROR:
-      return "(static mode error)";
-    case EVM_INVALID_INSTRUCTION:
+    case EVMC_STATIC_MODE_VIOLATION:
+      return "(static mode violation)";
+    case EVMC_INVALID_INSTRUCTION:
       return "(invalid instruction)";
-    case EVM_INVALID_MEMORY_ACCESS:
+    case EVMC_INVALID_MEMORY_ACCESS:
       return "(invalid memory access)";
-    case EVM_REJECTED:
+    case EVMC_REJECTED:
       return "(rejected)";
-    case EVM_INTERNAL_ERROR:
+    case EVMC_INTERNAL_ERROR:
       return "(internal error)";
     default:
       return "(error: unknown status value)";

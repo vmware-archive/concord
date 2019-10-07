@@ -50,7 +50,7 @@
 //
 // * Contract Data
 //   - Key: TYPE_STORAGE+[contract address (20 bytes)]+[location (32 bytes)]
-//   - Value: 32 bytes directly copied from an evm_uint256be
+//   - Value: 32 bytes directly copied from an evmc_uint256be
 //   - Notes: aka "storage"
 //
 // * Account Nonce
@@ -68,7 +68,7 @@
 #include "consensus/hash_defs.h"
 #include "consensus/hex_tools.h"
 #include "consensus/sliver.hpp"
-#include "evm.h"
+#include "evmjit.h"
 #include "storage/blockchain_interfaces.h"
 #include "utils/concord_eth_hash.hpp"
 
@@ -150,35 +150,35 @@ Sliver EthKvbStorage::kvb_key(uint8_t type, const uint8_t *bytes,
  * Convenience functions for constructing a key for each object type.
  */
 Sliver EthKvbStorage::block_key(const EthBlock &blk) const {
-  return kvb_key(TYPE_BLOCK, blk.get_hash().bytes, sizeof(evm_uint256be));
+  return kvb_key(TYPE_BLOCK, blk.get_hash().bytes, sizeof(evmc_uint256be));
 }
 
-Sliver EthKvbStorage::block_key(const evm_uint256be &hash) const {
+Sliver EthKvbStorage::block_key(const evmc_uint256be &hash) const {
   return kvb_key(TYPE_BLOCK, hash.bytes, sizeof(hash));
 }
 
 Sliver EthKvbStorage::transaction_key(const EthTransaction &tx) const {
-  return kvb_key(TYPE_TRANSACTION, tx.hash().bytes, sizeof(evm_uint256be));
+  return kvb_key(TYPE_TRANSACTION, tx.hash().bytes, sizeof(evmc_uint256be));
 }
 
-Sliver EthKvbStorage::transaction_key(const evm_uint256be &hash) const {
+Sliver EthKvbStorage::transaction_key(const evmc_uint256be &hash) const {
   return kvb_key(TYPE_TRANSACTION, hash.bytes, sizeof(hash));
 }
 
-Sliver EthKvbStorage::balance_key(const evm_address &addr) const {
+Sliver EthKvbStorage::balance_key(const evmc_address &addr) const {
   return kvb_key(TYPE_BALANCE, addr.bytes, sizeof(addr));
 }
 
-Sliver EthKvbStorage::nonce_key(const evm_address &addr) const {
+Sliver EthKvbStorage::nonce_key(const evmc_address &addr) const {
   return kvb_key(TYPE_NONCE, addr.bytes, sizeof(addr));
 }
 
-Sliver EthKvbStorage::code_key(const evm_address &addr) const {
+Sliver EthKvbStorage::code_key(const evmc_address &addr) const {
   return kvb_key(TYPE_CODE, addr.bytes, sizeof(addr));
 }
 
-Sliver EthKvbStorage::storage_key(const evm_address &addr,
-                                  const evm_uint256be &location) const {
+Sliver EthKvbStorage::storage_key(const evmc_address &addr,
+                                  const evmc_uint256be &location) const {
   uint8_t combined[sizeof(addr) + sizeof(location)];
   std::copy(addr.bytes, addr.bytes + sizeof(addr), combined);
   std::copy(location.bytes, location.bytes + sizeof(location),
@@ -295,11 +295,11 @@ void EthKvbStorage::add_transaction(EthTransaction &tx) {
   pending_transactions.push_back(tx);
 }
 
-void EthKvbStorage::set_balance(const evm_address &addr,
-                                evm_uint256be balance) {
+void EthKvbStorage::set_balance(const evmc_address &addr,
+                                evmc_uint256be balance) {
   com::vmware::concord::kvb::Balance proto;
   proto.set_version(balance_storage_version);
-  proto.set_balance(balance.bytes, sizeof(evm_uint256be));
+  proto.set_balance(balance.bytes, sizeof(evmc_uint256be));
   size_t sersize = proto.ByteSize();
   uint8_t *ser = new uint8_t[sersize];
   proto.SerializeToArray(ser, sersize);
@@ -307,7 +307,7 @@ void EthKvbStorage::set_balance(const evm_address &addr,
   put(balance_key(addr), Sliver(ser, sersize));
 }
 
-void EthKvbStorage::set_nonce(const evm_address &addr, uint64_t nonce) {
+void EthKvbStorage::set_nonce(const evmc_address &addr, uint64_t nonce) {
   com::vmware::concord::kvb::Nonce proto;
   proto.set_version(nonce_storage_version);
   proto.set_nonce(nonce);
@@ -318,12 +318,12 @@ void EthKvbStorage::set_nonce(const evm_address &addr, uint64_t nonce) {
   put(nonce_key(addr), Sliver(ser, sersize));
 }
 
-void EthKvbStorage::set_code(const evm_address &addr, const uint8_t *code,
+void EthKvbStorage::set_code(const evmc_address &addr, const uint8_t *code,
                              size_t code_size) {
   com::vmware::concord::kvb::Code proto;
   proto.set_version(code_storage_version);
   proto.set_code(code, code_size);
-  evm_uint256be hash = concord::utils::eth_hash::keccak_hash(code, code_size);
+  evmc_uint256be hash = concord::utils::eth_hash::keccak_hash(code, code_size);
   proto.set_hash(hash.bytes, sizeof(hash));
 
   size_t sersize = proto.ByteSize();
@@ -333,9 +333,9 @@ void EthKvbStorage::set_code(const evm_address &addr, const uint8_t *code,
   put(code_key(addr), Sliver(ser, sersize));
 }
 
-void EthKvbStorage::set_storage(const evm_address &addr,
-                                const evm_uint256be &location,
-                                const evm_uint256be &data) {
+void EthKvbStorage::set_storage(const evmc_address &addr,
+                                const evmc_uint256be &location,
+                                const evmc_uint256be &data) {
   uint8_t *str = new uint8_t[sizeof(data)];
   std::copy(data.bytes, data.bytes + sizeof(data), str);
   put(storage_key(addr, location), Sliver(str, sizeof(data)));
@@ -421,7 +421,7 @@ EthBlock EthKvbStorage::get_block(uint64_t number) {
   throw BlockNotFoundException();
 }
 
-EthBlock EthKvbStorage::get_block(const evm_uint256be &hash) {
+EthBlock EthKvbStorage::get_block(const evmc_uint256be &hash) {
   Sliver kvbkey = block_key(hash);
   Sliver value;
   Status status = get(kvbkey, value);
@@ -439,7 +439,7 @@ EthBlock EthKvbStorage::get_block(const evm_uint256be &hash) {
   throw BlockNotFoundException();
 }
 
-EthTransaction EthKvbStorage::get_transaction(const evm_uint256be &hash) {
+EthTransaction EthKvbStorage::get_transaction(const evmc_uint256be &hash) {
   Sliver kvbkey = transaction_key(hash);
   Sliver value;
   Status status = get(kvbkey, value);
@@ -456,13 +456,13 @@ EthTransaction EthKvbStorage::get_transaction(const evm_uint256be &hash) {
   throw TransactionNotFoundException();
 }
 
-evm_uint256be EthKvbStorage::get_balance(const evm_address &addr) {
+evmc_uint256be EthKvbStorage::get_balance(const evmc_address &addr) {
   uint64_t block_number = current_block_number();
   return get_balance(addr, block_number);
 }
 
-evm_uint256be EthKvbStorage::get_balance(const evm_address &addr,
-                                         uint64_t &block_number) {
+evmc_uint256be EthKvbStorage::get_balance(const evmc_address &addr,
+                                          uint64_t &block_number) {
   Sliver kvbkey = balance_key(addr);
   Sliver value;
   BlockId outBlock;
@@ -475,7 +475,7 @@ evm_uint256be EthKvbStorage::get_balance(const evm_address &addr,
                               << " value.length: " << value.length()
                               << " out block at: " << outBlock);
 
-  evm_uint256be out;
+  evmc_uint256be out;
   if (status.isOK() && value.length() > 0) {
     com::vmware::concord::kvb::Balance balance;
     if (balance.ParseFromArray(value.data(), value.length())) {
@@ -493,15 +493,15 @@ evm_uint256be EthKvbStorage::get_balance(const evm_address &addr,
   }
 
   // untouched accounts have a balance of 0
-  return evm_uint256be{0};
+  return evmc_uint256be{0};
 }
 
-uint64_t EthKvbStorage::get_nonce(const evm_address &addr) {
+uint64_t EthKvbStorage::get_nonce(const evmc_address &addr) {
   uint64_t block_number = current_block_number();
   return get_nonce(addr, block_number);
 }
 
-uint64_t EthKvbStorage::get_nonce(const evm_address &addr,
+uint64_t EthKvbStorage::get_nonce(const evmc_address &addr,
                                   uint64_t &block_number) {
   Sliver kvbkey = nonce_key(addr);
   Sliver value;
@@ -530,7 +530,7 @@ uint64_t EthKvbStorage::get_nonce(const evm_address &addr,
   return 0;
 }
 
-bool EthKvbStorage::account_exists(const evm_address &addr) {
+bool EthKvbStorage::account_exists(const evmc_address &addr) {
   Sliver kvbkey = balance_key(addr);
   Sliver value;
   Status status = get(kvbkey, value);
@@ -551,8 +551,8 @@ bool EthKvbStorage::account_exists(const evm_address &addr) {
  * Code and hash will be copied to `out`, if found, and `true` will be
  * returned. If no code is found, `false` is returned.
  */
-bool EthKvbStorage::get_code(const evm_address &addr, std::vector<uint8_t> &out,
-                             evm_uint256be &hash) {
+bool EthKvbStorage::get_code(const evmc_address &addr,
+                             std::vector<uint8_t> &out, evmc_uint256be &hash) {
   uint64_t block_number = current_block_number();
   return get_code(addr, out, hash, block_number);
 }
@@ -567,8 +567,9 @@ bool EthKvbStorage::get_code(const evm_address &addr, std::vector<uint8_t> &out,
  *                     'default block parameters'
  * @return
  */
-bool EthKvbStorage::get_code(const evm_address &addr, std::vector<uint8_t> &out,
-                             evm_uint256be &hash, uint64_t &block_number) {
+bool EthKvbStorage::get_code(const evmc_address &addr,
+                             std::vector<uint8_t> &out, evmc_uint256be &hash,
+                             uint64_t &block_number) {
   Sliver kvbkey = code_key(addr);
   Sliver value;
   BlockId outBlock;
@@ -604,15 +605,15 @@ bool EthKvbStorage::get_code(const evm_address &addr, std::vector<uint8_t> &out,
   return false;
 }
 
-evm_uint256be EthKvbStorage::get_storage(const evm_address &addr,
-                                         const evm_uint256be &location) {
+evmc_uint256be EthKvbStorage::get_storage(const evmc_address &addr,
+                                          const evmc_uint256be &location) {
   uint64_t block_number = current_block_number();
   return get_storage(addr, location, block_number);
 }
 
-evm_uint256be EthKvbStorage::get_storage(const evm_address &addr,
-                                         const evm_uint256be &location,
-                                         uint64_t &block_number) {
+evmc_uint256be EthKvbStorage::get_storage(const evmc_address &addr,
+                                          const evmc_uint256be &location,
+                                          uint64_t &block_number) {
   Sliver kvbkey = storage_key(addr, location);
   Sliver value;
   BlockId outBlock;
@@ -627,9 +628,9 @@ evm_uint256be EthKvbStorage::get_storage(const evm_address &addr,
                               << " value.length: " << value.length()
                               << " out block at: " << outBlock);
 
-  evm_uint256be out;
+  evmc_uint256be out;
   if (status.isOK() && value.length() > 0) {
-    if (value.length() == sizeof(evm_uint256be)) {
+    if (value.length() == sizeof(evmc_uint256be)) {
       std::copy(value.data(), value.data() + value.length(), out.bytes);
     } else {
       LOG4CPLUS_ERROR(logger, "Contract " << addr << " storage " << location

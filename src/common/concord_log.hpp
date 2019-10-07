@@ -10,7 +10,7 @@
 
 #include <ostream>
 #include <vector>
-#include "evm.h"
+#include "evmjit.h"
 
 namespace concord {
 namespace common {
@@ -26,10 +26,10 @@ struct HexPrintBytes {
 
 std::ostream& operator<<(std::ostream& s, HexPrintVector v);
 std::ostream& operator<<(std::ostream& s, HexPrintBytes p);
-std::ostream& operator<<(std::ostream& s, const evm_uint256be& u);
-std::ostream& operator<<(std::ostream& s, const evm_address& u);
-std::ostream& operator<<(std::ostream& s, struct evm_message msg);
-std::ostream& operator<<(std::ostream& s, evm_call_kind kind);
+std::ostream& operator<<(std::ostream& s, const evmc_uint256be& u);
+std::ostream& operator<<(std::ostream& s, const evmc_address& u);
+std::ostream& operator<<(std::ostream& s, struct evmc_message msg);
+std::ostream& operator<<(std::ostream& s, evmc_call_kind kind);
 
 }  // namespace common
 }  // namespace concord

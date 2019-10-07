@@ -35,7 +35,7 @@
 #include "api/connection_manager.hpp"
 #include "common/concord_log.hpp"
 #include "consensus/kvb_client.hpp"
-#include "evm.h"
+#include "evmjit.h"
 
 using namespace boost::asio;
 using namespace std;
@@ -57,7 +57,7 @@ using google::protobuf::util::TimeUtil;
 
 using concord::common::StatusAggregator;
 using concord::consensus::KVBClientPool;
-using concord::utils::from_evm_uint256be;
+using concord::utils::from_evmc_uint256be;
 
 namespace concord {
 namespace api {
@@ -704,8 +704,8 @@ void ApiConnection::handle_time_request() {
  */
 bool ApiConnection::is_valid_eth_getStorageAt(const EthRequest &request) {
   if (request.has_addr_to() &&
-      request.addr_to().size() == sizeof(evm_address) && request.has_data() &&
-      request.data().size() == sizeof(evm_uint256be)) {
+      request.addr_to().size() == sizeof(evmc_address) && request.has_data() &&
+      request.data().size() == sizeof(evmc_uint256be)) {
     // must have the address of the contract, and the location to read
     return true;
   } else {
@@ -720,7 +720,7 @@ bool ApiConnection::is_valid_eth_getStorageAt(const EthRequest &request) {
  */
 bool ApiConnection::is_valid_eth_getCode(const EthRequest &request) {
   if (request.has_addr_to() &&
-      request.addr_to().size() == sizeof(evm_address)) {
+      request.addr_to().size() == sizeof(evmc_address)) {
     return true;
   } else {
     ErrorResponse *error = concordResponse_.add_error_response();
@@ -735,7 +735,7 @@ bool ApiConnection::is_valid_eth_getCode(const EthRequest &request) {
 bool ApiConnection::is_valid_eth_getTransactionCount(
     const EthRequest &request) {
   if (request.has_addr_to() &&
-      request.addr_to().size() == sizeof(evm_address)) {
+      request.addr_to().size() == sizeof(evmc_address)) {
     return true;
   } else {
     ErrorResponse *error = concordResponse_.add_error_response();
@@ -749,7 +749,7 @@ bool ApiConnection::is_valid_eth_getTransactionCount(
  */
 bool ApiConnection::is_valid_eth_getBalance(const EthRequest &request) {
   if (request.has_addr_to() &&
-      request.addr_to().size() == sizeof(evm_address)) {
+      request.addr_to().size() == sizeof(evmc_address)) {
     return true;
   } else {
     ErrorResponse *error = concordResponse_.add_error_response();
@@ -782,9 +782,9 @@ uint64_t ApiConnection::current_block_number() {
                                     internalResp)) {
     if (internalResp.eth_response_size() > 0) {
       std::string strblk = internalResp.eth_response(0).data();
-      evm_uint256be rawNumber;
+      evmc_uint256be rawNumber;
       std::copy(strblk.begin(), strblk.end(), rawNumber.bytes);
-      return from_evm_uint256be(&rawNumber);
+      return from_evmc_uint256be(&rawNumber);
     }
   }
 

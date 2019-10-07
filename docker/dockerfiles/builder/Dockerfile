@@ -74,7 +74,8 @@ RUN autoconf && ./configure CXXFLAGS="--std=c++11 -march=x86-64 -mtune=generic" 
 WORKDIR /
 RUN git clone https://github.com/ethereum/evmjit.git && \
     cd /evmjit && \
-    git checkout 4e9f3d76292c7de0c6613427761f843b1719f614
+    git checkout 886941b07370a81ce565f0ffbd9b8595a24ea7a4 && \
+    git submodule update --init --recursive
 WORKDIR /evmjit/build
 RUN cmake -DLLVM_DIR=/usr/lib/llvm-5.0/lib/cmake/llvm -DCMAKE_CXX_FLAGS="-march=x86-64 -mtune=generic" ..
 RUN cmake --build . --config RelWithDebInfo -- -j${MAKE_PARALLELISM}
