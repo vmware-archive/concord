@@ -9,7 +9,7 @@
 #include <log4cplus/loggingmacros.h>
 #include <secp256k1.h>
 
-#include "evmjit.h"
+#include "evmc/evmc.h"
 
 namespace concord {
 namespace utils {

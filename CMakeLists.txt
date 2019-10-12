@@ -1,7 +1,7 @@
 # Copyright (c) 2018-2019 VMware, Inc. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.13)
 project(concord)
 
 # Require C++11.
@@ -54,20 +54,9 @@ configure_file(test/resources/concord4.config test/resources/concord4.config COP
 file(COPY test/resources/tls_certs DESTINATION test/resources)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
-if(DEFINED USE_HERA)
-  find_package(Hera REQUIRED)
-  include_directories(${Hera_INCLUDE_DIRS})
-  set(EVM_LIBRARIES ${Hera_LIBRARIES})
-else(DEFINED USE_HERA)
-  find_package(Evmjit REQUIRED)
-  include_directories(${Evmjit_INCLUDE_DIRS})
-  set(EVM_LIBRARIES ${Evmjit_LIBRARIES})
-
-  if(APPLE)
-    set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} "/usr/local/Cellar/llvm@5/5.0.2/lib/cmake/llvm")
-  endif(APPLE)
-  find_package(LLVM REQUIRED CONFIG)
-endif(DEFINED USE_HERA)
+find_package(Evmone REQUIRED)
+include_directories(${Evmone_INCLUDE_DIRS})
+set(EVM_LIBRARIES ${Evmone_LIBRARIES})
 
 find_package(Cryptopp REQUIRED)
 

@@ -35,7 +35,7 @@
 #include "api/connection_manager.hpp"
 #include "common/concord_log.hpp"
 #include "consensus/kvb_client.hpp"
-#include "evmjit.h"
+#include "evmc/evmc.h"
 
 using namespace boost::asio;
 using namespace std;

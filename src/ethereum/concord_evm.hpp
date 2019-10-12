@@ -12,7 +12,7 @@
 #include <vector>
 #include "common/concord_types.hpp"
 #include "evm_init_params.hpp"
-#include "evmjit.h"
+#include "evmc/evmc.h"
 #include "utils/concord_utils.hpp"
 
 namespace concord {
@@ -50,21 +50,21 @@ typedef struct concord_context {
   struct evmc_address storage_contract;
 } concord_context;
 
-int conc_account_exists(struct evmc_context* evmctx,
-                        const struct evmc_address* address);
-void conc_get_storage(struct evmc_uint256be* result,
-                      struct evmc_context* evmctx,
-                      const struct evmc_address* address,
-                      const struct evmc_uint256be* key);
-void conc_set_storage(struct evmc_context* evmctx,
-                      const struct evmc_address* address,
-                      const struct evmc_uint256be* key,
-                      const struct evmc_uint256be* value);
-void conc_get_balance(struct evmc_uint256be* result,
-                      struct evmc_context* evmctx,
-                      const struct evmc_address* address);
+bool conc_account_exists(struct evmc_context* evmctx,
+                         const struct evmc_address* address);
+evmc_bytes32 conc_get_storage(struct evmc_context* evmctx,
+                              const struct evmc_address* address,
+                              const evmc_uint256be* key);
+evmc_storage_status conc_set_storage(struct evmc_context* evmctx,
+                                     const struct evmc_address* address,
+                                     const evmc_uint256be* key,
+                                     const evmc_uint256be* value);
+evmc_bytes32 conc_get_balance(struct evmc_context* evmctx,
+                              const struct evmc_address* address);
 size_t conc_get_code_size(struct evmc_context* evmctx,
                           const struct evmc_address* address);
+evmc_bytes32 conc_get_code_hash(struct evmc_context* evmctx,
+                                const struct evmc_address* address);
 size_t conc_copy_code(struct evmc_context* evmctx,
                       const struct evmc_address* address, size_t code_offset,
                       uint8_t* buffer_data, size_t buffer_size);
@@ -73,23 +73,21 @@ void conc_selfdestruct(struct evmc_context* evmctx,
                        const struct evmc_address* beneficiary);
 void conc_emit_log(struct evmc_context* evmctx,
                    const struct evmc_address* address, const uint8_t* data,
-                   size_t data_size, const struct evmc_uint256be topics[],
+                   size_t data_size, const evmc_uint256be topics[],
                    size_t topics_count);
-void conc_call(struct evmc_result* result, struct evmc_context* evmctx,
-               const struct evmc_message* msg);
-void conc_get_block_hash(struct evmc_uint256be* result,
-                         struct evmc_context* evmctx, int64_t number);
-void conc_get_tx_context(struct evmc_tx_context* result,
-                         struct evmc_context* evmctx);
+struct evmc_result conc_call(struct evmc_context* evmctx,
+                             const struct evmc_message* msg);
+evmc_bytes32 conc_get_block_hash(struct evmc_context* evmctx, int64_t number);
+struct evmc_tx_context conc_get_tx_context(struct evmc_context* evmctx);
 
 /*
  * Function dispatch table for EVM. Specified by EEI.
  */
-const static struct evmc_context_fn_table concord_fn_table = {
-    conc_account_exists, conc_get_storage,   conc_set_storage,
-    conc_get_balance,    conc_get_code_size, conc_copy_code,
-    conc_selfdestruct,   conc_call,          conc_get_tx_context,
-    conc_get_block_hash, conc_emit_log};
+const static struct evmc_host_interface concord_fn_table = {
+    conc_account_exists, conc_get_storage,    conc_set_storage,
+    conc_get_balance,    conc_get_code_size,  conc_get_code_hash,
+    conc_copy_code,      conc_selfdestruct,   conc_call,
+    conc_get_tx_context, conc_get_block_hash, conc_emit_log};
 }
 
 class EVM {

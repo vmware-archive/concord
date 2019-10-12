@@ -8,7 +8,7 @@
 #include <keccak.h>
 #include <log4cplus/loggingmacros.h>
 
-#include "evmjit.h"
+#include "evmc/evmc.h"
 
 namespace concord {
 namespace utils {

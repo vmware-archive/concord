@@ -8,7 +8,7 @@
 
 #include <memory>
 #include <vector>
-#include "evmjit.h"
+#include "evmc/evmc.h"
 
 namespace concord {
 namespace utils {

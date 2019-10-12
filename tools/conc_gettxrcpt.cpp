@@ -13,7 +13,7 @@
 #include "concmdopt.hpp"
 #include "concord.pb.h"
 
-#include "evmjit.h"
+#include "evmc/evmc.h"
 
 using namespace boost::program_options;
 using namespace com::vmware::concord;

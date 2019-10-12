@@ -7,7 +7,7 @@
 
 #include <ios>
 
-#include "evmjit.h"
+#include "evmc/evmc.h"
 #include "hex_tools.h"
 
 using concordUtils::hexPrint;
@@ -39,6 +39,9 @@ std::ostream& operator<<(std::ostream& s, evmc_call_kind kind) {
   switch (kind) {
     case EVMC_CALL:
       s << "EVMC_CALL";
+      break;
+    case EVMC_CREATE2:
+      s << "EVMC_CREATE2";
       break;
     case EVMC_DELEGATECALL:
       s << "EVMC_DELEGATECALL";

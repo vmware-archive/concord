@@ -15,16 +15,13 @@
 #include "common/concord_log.hpp"
 #include "common/concord_types.hpp"
 #include "ethereum/eth_kvb_storage.hpp"
+
+#include "evmc/evmc.h"
+#include "evmc/loader.h"
 #include "hash_defs.h"
 #include "utils/concord_eth_hash.hpp"
 #include "utils/concord_utils.hpp"
 #include "utils/rlp.hpp"
-
-#ifdef USE_HERA
-#include "hera.h"
-#else
-#include "evmjit.h"
-#endif
 
 using boost::multiprecision::uint256_t;
 using log4cplus::Logger;
@@ -34,6 +31,7 @@ using concord::common::EthLog;
 using concord::common::EVMException;
 using concord::common::zero_address;
 using concord::common::zero_hash;
+using concord::common::zero_value;
 using concord::common::operator<<;
 using concord::utils::from_evmc_uint256be;
 using concord::utils::from_uint256_t;
@@ -49,16 +47,19 @@ namespace ethereum {
 EVM::EVM(EVMInitParams params)
     : logger(Logger::getInstance("com.vmware.concord.evm")),
       chainId(params.get_chainID()) {
-#ifdef USE_HERA
-  evminst = hera_create();
-#else
-  evminst = evmjit_create();
-#endif
+  evmc_loader_error_code error_code;
+  evminst = evmc_load_and_create("/usr/local/lib/libevmone.so", &error_code);
+
+  if (error_code != EVMC_LOADER_SUCCESS) {
+    LOG4CPLUS_FATAL(logger, "Failed to load EVM: " << error_code);
+    throw EVMException("Could not load EVM library.");
+  }
 
   if (!evminst) {
     LOG4CPLUS_FATAL(logger, "Could not create EVM instance");
     throw EVMException("Could not create EVM instance");
   }
+
   LOG4CPLUS_INFO(logger, "EVM started");
 }
 
@@ -134,9 +135,9 @@ evmc_result EVM::run(evmc_message& message, uint64_t timestamp,
   result.output_size = 0;
   result.create_address = {0};
   result.release = nullptr;
+  // TODO: get_code doesn't need the hash anymore
   if (kvbStorage.get_code(message.destination, code, hash)) {
     LOG4CPLUS_DEBUG(logger, "Loaded code from " << message.destination);
-    message.code_hash = hash;
 
     try {
       result = execute(message, timestamp, kvbStorage, evmLogs, code, origin,
@@ -148,7 +149,7 @@ evmc_result EVM::run(evmc_message& message, uint64_t timestamp,
         }
       }
     } catch (EVMException e) {
-      LOG4CPLUS_ERROR(logger, "EVM execution exception: '"
+      LOG4CPLUS_DEBUG(logger, "EVM execution exception: '"
                                   << e.what() << "'. "
                                   << "Contract: " << message.destination);
       result.status_code = EVMC_FAILURE;
@@ -190,18 +191,15 @@ evmc_result EVM::create(evmc_address& contract_address, evmc_message& message,
   evmc_result result;
   if (!kvbStorage.get_code(contract_address, code, hash)) {
     LOG4CPLUS_DEBUG(logger, "Creating contract at " << contract_address);
-
+    LOG4CPLUS_DEBUG(logger, "Contract size is " << message.input_size);
     std::vector<uint8_t> create_code = std::vector<uint8_t>(
         message.input_data, message.input_data + message.input_size);
     message.destination = contract_address;
 
-    // we need a hash for this, or evmjit will cache its compilation under
-    // something random
-    message.code_hash = concord::utils::eth_hash::keccak_hash(create_code);
-
     result = execute(message, timestamp, kvbStorage, evmLogs, create_code,
                      origin, contract_address);
 
+    LOG4CPLUS_DEBUG(logger, "Creation execution complete.");
     // TODO: check if the new contract is zero bytes in length;
     //       return error, not success in that case
     if (result.status_code == EVMC_SUCCESS) {
@@ -302,6 +300,8 @@ evmc_result EVM::execute(evmc_message& message, uint64_t timestamp,
       {&concord_fn_table}, this,   &kvbStorage,     &evmLogs, &logger,
       timestamp,           origin, storage_contract};
 
+  LOG4CPLUS_DEBUG(logger, "EVM execution, code size: " << code.size());
+
   return evminst->execute(evminst, &concctx.evmctx, EVMC_BYZANTIUM, &message,
                           &code[0], code.size());
 }
@@ -320,54 +320,67 @@ const concord_context* conc_context(const struct evmc_context* evmctx) {
   return reinterpret_cast<const concord_context*>(evmctx);
 }
 
-int conc_account_exists(struct evmc_context* evmctx,
-                        const struct evmc_address* address) {
+bool conc_account_exists(struct evmc_context* evmctx,
+                         const struct evmc_address* address) {
   LOG4CPLUS_DEBUG(*(conc_context(evmctx)->logger),
                   "EVM::account_exists called, address: " << *address);
 
   if (conc_context(evmctx)->kvbStorage->account_exists(*address)) {
-    return 1;
+    return true;
   }
-  return 0;
+  return false;
 }
 
-void conc_get_storage(struct evmc_uint256be* result,
-                      struct evmc_context* evmctx,
-                      const struct evmc_address* address,
-                      const struct evmc_uint256be* key) {
+evmc_bytes32 conc_get_storage(struct evmc_context* evmctx,
+                              const struct evmc_address* address,
+                              const evmc_uint256be* key) {
   LOG4CPLUS_DEBUG(*(conc_context(evmctx)->logger),
                   "EVM::get_storage called, contract address: "
                       << *address << " storage contract: "
                       << conc_context(evmctx)->storage_contract
                       << " key: " << *key);
 
-  *result = conc_context(evmctx)->kvbStorage->get_storage(
+  return conc_context(evmctx)->kvbStorage->get_storage(
       conc_context(evmctx)->storage_contract, *key);
 }
 
-void conc_set_storage(struct evmc_context* evmctx,
-                      const struct evmc_address* address,
-                      const struct evmc_uint256be* key,
-                      const struct evmc_uint256be* value) {
+evmc_storage_status conc_set_storage(struct evmc_context* evmctx,
+                                     const struct evmc_address* address,
+                                     const evmc_uint256be* key,
+                                     const evmc_uint256be* value) {
   LOG4CPLUS_DEBUG(*(conc_context(evmctx)->logger),
                   "EVM::set_storage called, contract address: "
                       << *address << " storage contract: "
                       << conc_context(evmctx)->storage_contract
                       << " key: " << *key << " value: " << *value);
 
+  // TODO: modify set_storage to do this check in one pass.
+  evmc_bytes32 prev = conc_context(evmctx)->kvbStorage->get_storage(
+      conc_context(evmctx)->storage_contract, *key);
+
   conc_context(evmctx)->kvbStorage->set_storage(
       conc_context(evmctx)->storage_contract, *key, *value);
+
+  // TODO: We don't properly handle EVMC_MODIFIED_AGAIN, which changes the
+  // gas cost of some executions. To enable this we would need to track
+  // which storage values were modified in an execution.
+  if (memcmp(&prev, value, sizeof(evmc_bytes32)) == 0) {
+    return EVMC_STORAGE_UNCHANGED;
+  } else if (memcmp(&prev, &zero_value, sizeof(evmc_bytes32)) == 0) {
+    return EVMC_STORAGE_MODIFIED;
+  } else if (memcmp(value, &zero_value, sizeof(evmc_bytes32)) == 0) {
+    return EVMC_STORAGE_DELETED;
+  } else {
+    return EVMC_STORAGE_ADDED;
+  }
 }
 
-void conc_get_balance(struct evmc_uint256be* result,
-                      struct evmc_context* evmctx,
-                      const struct evmc_address* address) {
+evmc_uint256be conc_get_balance(struct evmc_context* evmctx,
+                                const struct evmc_address* address) {
   LOG4CPLUS_DEBUG(*(conc_context(evmctx)->logger),
                   "EVM::get_balance called, address: " << *address);
 
-  evmc_uint256be balance =
-      conc_context(evmctx)->kvbStorage->get_balance(*address);
-  memcpy(result, &balance, sizeof(evmc_uint256be));
+  return conc_context(evmctx)->kvbStorage->get_balance(*address);
 }
 
 size_t conc_get_code_size(struct evmc_context* evmctx,
@@ -381,6 +394,19 @@ size_t conc_get_code_size(struct evmc_context* evmctx,
   }
 
   return 0;
+}
+
+evmc_bytes32 conc_get_code_hash(struct evmc_context* evmctx,
+                                const struct evmc_address* address) {
+  LOG4CPLUS_DEBUG(*(conc_context(evmctx)->logger),
+                  "conc_get_code_hash called, address: " << *address);
+  std::vector<uint8_t> code;
+  evmc_uint256be hash;
+  if (conc_context(evmctx)->kvbStorage->get_code(*address, code, hash)) {
+    return hash;
+  }
+
+  return zero_hash;
 }
 
 size_t conc_copy_code(struct evmc_context* evmctx,
@@ -411,7 +437,7 @@ void conc_selfdestruct(struct evmc_context* evmctx,
 
 void conc_emit_log(struct evmc_context* evmctx,
                    const struct evmc_address* address, const uint8_t* data,
-                   size_t data_size, const struct evmc_uint256be topics[],
+                   size_t data_size, const evmc_uint256be topics[],
                    size_t topics_count) {
   LOG4CPLUS_DEBUG(*(conc_context(evmctx)->logger),
                   "EVM::emit_log called, address: "
@@ -428,8 +454,8 @@ void conc_emit_log(struct evmc_context* evmctx,
   conc_context(evmctx)->evmLogs->push_back(log);
 }
 
-void conc_call(struct evmc_result* result, struct evmc_context* evmctx,
-               const struct evmc_message* msg) {
+struct evmc_result conc_call(struct evmc_context* evmctx,
+                             const struct evmc_message* msg) {
   // create copy of message struct since
   // call function needs non-const message object
   evmc_message call_msg = *msg;
@@ -441,10 +467,6 @@ void conc_call(struct evmc_result* result, struct evmc_context* evmctx,
   // incrementing the depth for us
   assert(msg->depth > 0);
 
-  // evmc_result object sent by evm is un-initialized, not initializing it
-  // can cause segmentation errors
-  memset(result, 0, sizeof(evmc_result));
-
   if (msg->kind == EVMC_CREATE) {
     EthKvbStorage* kvbStorage = conc_context(evmctx)->kvbStorage;
 
@@ -454,7 +476,7 @@ void conc_call(struct evmc_result* result, struct evmc_context* evmctx,
     evmc_address contract_address =
         conc_object(evmctx)->contract_destination(call_msg.sender, nonce);
 
-    *result = conc_object(evmctx)->create(
+    return conc_object(evmctx)->create(
         contract_address, call_msg, conc_context(evmctx)->timestamp,
         *kvbStorage, *(conc_context(evmctx)->evmLogs),
         conc_context(evmctx)->origin);
@@ -467,15 +489,14 @@ void conc_call(struct evmc_result* result, struct evmc_context* evmctx,
             ? conc_context(evmctx)->storage_contract
             : msg->destination;
 
-    *result = conc_object(evmctx)->run(
+    return conc_object(evmctx)->run(
         call_msg, conc_context(evmctx)->timestamp,
         *(conc_context(evmctx)->kvbStorage), *(conc_context(evmctx)->evmLogs),
         conc_context(evmctx)->origin, storage_contract);
   }
 }
 
-void conc_get_block_hash(struct evmc_uint256be* result,
-                         struct evmc_context* evmctx, int64_t number) {
+evmc_bytes32 conc_get_block_hash(struct evmc_context* evmctx, int64_t number) {
   LOG4CPLUS_DEBUG(*(conc_context(evmctx)->logger),
                   "EVM::get_block_hash called, block: " << number);
 
@@ -485,28 +506,29 @@ void conc_get_block_hash(struct evmc_uint256be* result,
             conc_context(evmctx)->kvbStorage->current_block_number()) {
       // KVBlockchain internals assert that the value passed to get_block
       // is <= the latest block number
-      *result = zero_hash;
+      return zero_hash;
     } else {
       EthBlock blk = conc_context(evmctx)->kvbStorage->get_block(number);
-      *result = blk.hash;
+      return blk.hash;
     }
   } catch (...) {
-    *result = zero_hash;
+    return zero_hash;
   }
 }
 
-void conc_get_tx_context(struct evmc_tx_context* result,
-                         struct evmc_context* evmctx) {
+struct evmc_tx_context conc_get_tx_context(struct evmc_context* evmctx) {
   LOG4CPLUS_DEBUG(*(conc_context(evmctx)->logger),
                   "EVM::get_tx_context called");
 
-  memset(result, 0, sizeof(*result));
+  evmc_tx_context result;
+  memset(&result, 0, sizeof(evmc_tx_context));
 
   // TODO: fill in the rest of the context for the currently-executing block
 
-  result->block_timestamp = conc_context(evmctx)->timestamp;
-  memcpy(result->tx_origin.bytes, conc_context(evmctx)->origin.bytes,
-         sizeof(result->tx_origin));
+  result.block_timestamp = conc_context(evmctx)->timestamp;
+  memcpy(result.tx_origin.bytes, conc_context(evmctx)->origin.bytes,
+         sizeof(result.tx_origin));
+  return result;
 }
 }
 

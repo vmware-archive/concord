@@ -15,6 +15,7 @@ namespace common {
 
 const evmc_address zero_address{{0}};
 const evmc_uint256be zero_hash{{0}};
+const evmc_uint256be zero_value{{0}};
 
 const int64_t tx_storage_version = 1;
 const int64_t blk_storage_version = 1;

@@ -65,7 +65,7 @@
 
 #include "common/concord_exception.hpp"
 #include "concord_storage.pb.h"
-#include "evmjit.h"
+#include "evmc/evmc.h"
 #include "utils/concord_eth_hash.hpp"
 
 using concord::common::BlockNotFoundException;

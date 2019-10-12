@@ -14,7 +14,7 @@
 #include "blockchain/db_interfaces.h"
 #include "blockchain/db_types.h"
 #include "common/concord_types.hpp"
-#include "evmjit.h"
+#include "evmc/evmc.h"
 #include "hash_defs.h"
 #include "sliver.hpp"
 #include "status.hpp"
