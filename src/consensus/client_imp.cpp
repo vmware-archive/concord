@@ -1,6 +1,6 @@
 // Copyright (c) 2018-2019 VMware, Inc. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-//
+
 // KV Blockchain client implementation.
 
 #include "client_imp.h"
@@ -12,9 +12,7 @@ using bftEngine::PlainUdpConfig;
 using bftEngine::SeqNumberGeneratorForClientRequests;
 using bftEngine::SimpleClient;
 using bftEngine::TlsTcpConfig;
-using concord::storage::ClientConsensusConfig;
-using concord::storage::CommConfig;
-using concord::storage::IClient;
+using concordUtils::Status;
 
 namespace concord {
 namespace consensus {

@@ -4,8 +4,7 @@
 // Shim between generic KVB and Concord-specific commands handlers.
 
 #include "concord_commands_handler.hpp"
-#include "consensus/hash_defs.h"
-#include "storage/blockchain_db_types.h"
+#include "hash_defs.h"
 #include "time/time_contract.hpp"
 
 #include <vector>
@@ -14,6 +13,7 @@ using com::vmware::concord::ErrorResponse;
 using com::vmware::concord::TimeRequest;
 using com::vmware::concord::TimeResponse;
 using com::vmware::concord::TimeSample;
+using concordUtils::Sliver;
 
 using google::protobuf::Timestamp;
 using std::chrono::steady_clock;
@@ -23,8 +23,8 @@ namespace consensus {
 
 ConcordCommandsHandler::ConcordCommandsHandler(
     const concord::config::ConcordConfiguration &config,
-    const concord::storage::ILocalKeyValueStorageReadOnly &storage,
-    concord::storage::IBlocksAppender &appender)
+    const concord::storage::blockchain::ILocalKeyValueStorageReadOnly &storage,
+    concord::storage::blockchain::IBlocksAppender &appender)
     : logger_(log4cplus::Logger::getInstance(
           "concord.consensus.ConcordCommandsHandler")),
       metadata_storage_(storage),
@@ -71,17 +71,22 @@ int ConcordCommandsHandler::execute(uint16_t client_id, uint64_t sequence_num,
         timing_time_update_.Start();
         TimeRequest tr = request_.time_request();
         TimeSample ts = tr.sample();
-        if (ts.has_source() && ts.has_time() && ts.has_signature()) {
+        if (!(time_->SignaturesEnabled()) && ts.has_source() && ts.has_time()) {
+          time_->Update(ts.source(), client_id, ts.time());
+        } else if (ts.has_source() && ts.has_time() && ts.has_signature()) {
           std::vector<uint8_t> signature(ts.signature().begin(),
                                          ts.signature().end());
-          time_->Update(ts.source(), ts.time(), signature);
+          time_->Update(ts.source(), client_id, ts.time(), &signature);
         } else {
           LOG4CPLUS_WARN(
               logger_,
               "Time Sample is missing:"
                   << " [" << (ts.has_source() ? " " : "X") << "] source"
                   << " [" << (ts.has_time() ? " " : "X") << "] time"
-                  << " [" << (ts.has_signature() ? " " : "X") << "] signature");
+                  << (time_->SignaturesEnabled()
+                          ? (string(" [") + (ts.has_signature() ? " " : "X") +
+                             "] signature")
+                          : ""));
         }
         timing_time_update_.End();
       } else {
@@ -151,8 +156,10 @@ int ConcordCommandsHandler::execute(uint16_t client_id, uint64_t sequence_num,
           ts->set_source(s.first);
           Timestamp *t = new Timestamp(s.second.time);
           ts->set_allocated_time(t);
-          ts->set_signature(s.second.signature.data(),
-                            s.second.signature.size());
+          if (s.second.signature) {
+            ts->set_signature(s.second.signature->data(),
+                              s.second.signature->size());
+          }
         }
       }
       timing_time_response_.End();
@@ -224,9 +231,9 @@ int ConcordCommandsHandler::execute(uint16_t client_id, uint64_t sequence_num,
   return result ? 0 : 1;
 }
 
-Status ConcordCommandsHandler::addBlock(
+concordUtils::Status ConcordCommandsHandler::addBlock(
     const concord::storage::SetOfKeyValuePairs &updates,
-    concord::storage::BlockId &out_block_id) {
+    concord::storage::blockchain::BlockId &out_block_id) {
   // The IBlocksAppender interface specifies that updates must be const, but we
   // need to add items here, so we have to make a copy and work with that. In
   // the future, maybe we can figure out how to either make updates non-const,

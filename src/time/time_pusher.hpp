@@ -20,7 +20,7 @@
 #include "concord.pb.h"
 #include "config/configuration_manager.hpp"
 #include "consensus/kvb_client.hpp"
-#include "time/time_signing.hpp"
+#include "time/time_verification.hpp"
 
 namespace concord {
 
@@ -37,12 +37,15 @@ class TimePusher {
   // Constructor for TimePusher. Arguments:
   //   - config: ConcordConfiguration for this Concord cluster.
   //   - nodeConfig: node-specific configuration for the node for which this
-  //   time pusher will submit updates. Note that the time source ID and
-  //   associated private key will be read from this configuration. An
-  //   std::invalid_argument may be thrown if an appropriate source ID and
-  //   private key cannot be founde in nodeConfig or either of the
-  //   ConcordConfigurations passed to the constructor otherwise do not meet the
-  //   expectations of the time service.
+  //   time pusher will submit updates. Note that the time source ID will be
+  //   read from this configuration; furthermore, if a time verification sheme
+  //   that uses signatures is enabled, the private key and any other
+  //   verification configuration for this source may also be read. An
+  //   std::invalid_argument may be thrown if an appropriate source ID cannot be
+  //   found in nodeConfig, if a signature-based verification scheme is enabled
+  //   but appropriate keys cannot be found, or if either of the
+  //   ConcordConfigurations passed to the constructor otherwise do not meet
+  //   the expectations of the time service.
   //   - clientPool: KVBClientPool through which this TimePusher will publish
   //   its updates.
   explicit TimePusher(const concord::config::ConcordConfiguration &config,

@@ -12,16 +12,17 @@
 #include <iomanip>
 #include <iostream>
 #include <string>
-#include "storage/blockchain_db_adapter.h"
-#include "storage/comparators.h"
-#include "storage/rocksdb_client.h"
+#include "blockchain/db_adapter.h"
+#include "rocksdb/client.h"
+#include "rocksdb/key_comparator.h"
 
 using namespace std;
-using concord::consensus::Sliver;
-using concord::storage::BlockchainDBAdapter;
-using concord::storage::BlockId;
-using concord::storage::RocksDBClient;
-using concord::storage::RocksKeyComparator;
+using concord::storage::blockchain::DBAdapter;
+using concord::storage::blockchain::KeyManipulator;
+using concord::storage::rocksdb::Client;
+using concord::storage::rocksdb::KeyComparator;
+using concordUtils::BlockId;
+using concordUtils::Sliver;
 
 enum class OpType { GetBlockRaw, GetBlockDigest };
 
@@ -35,14 +36,14 @@ string get_arg_value(string arg) {
   return arg.substr(idx + 1, arg.length() - idx - 1);
 }
 
-bool get_block(BlockId id, const BlockchainDBAdapter *adapter, Sliver &res) {
+bool get_block(BlockId id, const DBAdapter *adapter, Sliver &res) {
   bool found = false;
   adapter->getBlockById(id, res, found);
   return found;
 }
 
 std::vector<Sliver> get_data(BlockId from, BlockId to,
-                             const BlockchainDBAdapter *adapter) {
+                             const DBAdapter *adapter) {
   std::vector<Sliver> result;
   for (BlockId i = from; i <= to; i++) {
     Sliver res;
@@ -141,10 +142,10 @@ int main(int argc, char **argv) {
     readOnly = true;
   }
 
-  std::unique_ptr<RocksKeyComparator> comp(new RocksKeyComparator());
-  std::unique_ptr<RocksDBClient> client(new RocksDBClient(path, comp.get()));
-  std::unique_ptr<BlockchainDBAdapter> adapter(
-      new BlockchainDBAdapter(client.get(), readOnly));
+  std::unique_ptr<KeyManipulator> manip(new KeyManipulator());
+  std::unique_ptr<KeyComparator> comp(new KeyComparator(manip.get()));
+  std::unique_ptr<Client> client(new Client(path, comp.get()));
+  std::unique_ptr<DBAdapter> adapter(new DBAdapter(client.get(), readOnly));
 
   switch (opTypes[op]) {
     case OpType::GetBlockDigest: {

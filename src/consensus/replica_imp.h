@@ -16,12 +16,16 @@
 #include "Replica.hpp"
 #include "ReplicaConfig.hpp"
 #include "StatusInfo.h"
-#include "consensus/hash_defs.h"
+#include "blockchain/db_adapter.h"
+#include "blockchain/db_interfaces.h"
+#include "communication.h"
 #include "consensus/replica_state_sync.h"
-#include "storage/blockchain_db_adapter.h"
-#include "storage/blockchain_interfaces.h"
-#include "storage/in_memory_db_client.h"
-#include "storage/rocksdb_metadata_storage.h"
+#include "hash_defs.h"
+#include "memorydb/client.h"
+#include "replica_interface.h"
+#include "sliver.hpp"
+#include "status.hpp"
+#include "storage/db_metadata_storage.h"
 
 namespace concord {
 namespace consensus {
@@ -36,77 +40,82 @@ class ReplicaInitException : public std::exception {
   std::string msg;
 };
 
-class ReplicaImp : public concord::storage::IReplica,
-                   public concord::storage::ILocalKeyValueStorageReadOnly,
-                   public concord::storage::IBlocksAppender {
+class ReplicaImp
+    : public IReplica,
+      public concord::storage::blockchain::ILocalKeyValueStorageReadOnly,
+      public concord::storage::blockchain::IBlocksAppender {
  public:
   // concord::storage::IReplica methods
-  virtual Status start() override;
-  virtual Status stop() override;
+  virtual concordUtils::Status start() override;
+  virtual concordUtils::Status stop() override;
 
   virtual RepStatus getReplicaStatus() const override;
 
-  virtual const concord::storage::ILocalKeyValueStorageReadOnly &
+  virtual const concord::storage::blockchain::ILocalKeyValueStorageReadOnly &
   getReadOnlyStorage() override;
 
-  virtual Status addBlockToIdleReplica(
+  virtual concordUtils::Status addBlockToIdleReplica(
       const concord::storage::SetOfKeyValuePairs &updates) override;
 
-  virtual void set_command_handler(
-      concord::storage::ICommandsHandler *handler) override;
+  virtual void set_command_handler(ICommandsHandler *handler) override;
 
-  // concord::storage::ILocalKeyValueStorageReadOnly methods
-  virtual Status get(Sliver key, Sliver &outValue) const override;
+  // concord::storage::blockchain::ILocalKeyValueStorageReadOnly methods
+  virtual concordUtils::Status get(
+      const concordUtils::Key &key,
+      concordUtils::Value &outValue) const override;
 
-  virtual Status get(concord::storage::BlockId readVersion, Sliver key,
-                     Sliver &outValue,
-                     concord::storage::BlockId &outBlock) const override;
+  virtual concordUtils::Status get(
+      concordUtils::BlockId readVersion, const concordUtils::Sliver &key,
+      concordUtils::Sliver &outValue,
+      concordUtils::BlockId &outBlock) const override;
 
-  virtual concord::storage::BlockId getLastBlock() const override;
+  virtual concordUtils::BlockId getLastBlock() const override;
 
-  virtual Status getBlockData(
-      concord::storage::BlockId blockId,
+  virtual concordUtils::Status getBlockData(
+      concordUtils::BlockId blockId,
       concord::storage::SetOfKeyValuePairs &outBlockData) const override;
 
-  virtual Status mayHaveConflictBetween(Sliver key,
-                                        concord::storage::BlockId fromBlock,
-                                        concord::storage::BlockId toBlock,
-                                        bool &outRes) const override;
+  virtual concordUtils::Status mayHaveConflictBetween(
+      const concordUtils::Sliver &key, concordUtils::BlockId fromBlock,
+      concordUtils::BlockId toBlock, bool &outRes) const override;
 
-  virtual concord::storage::ILocalKeyValueStorageReadOnlyIterator *
+  virtual concord::storage::blockchain::ILocalKeyValueStorageReadOnlyIterator *
   getSnapIterator() const override;
 
-  virtual Status freeSnapIterator(
-      concord::storage::ILocalKeyValueStorageReadOnlyIterator *iter)
+  virtual concordUtils::Status freeSnapIterator(
+      concord::storage::blockchain::ILocalKeyValueStorageReadOnlyIterator *iter)
       const override;
 
   virtual void monitor() const override;
 
   // concord::storage::IBlocksAppender
-  virtual Status addBlock(const concord::storage::SetOfKeyValuePairs &updates,
-                          concord::storage::BlockId &outBlockId) override;
+  virtual concordUtils::Status addBlock(
+      const concord::storage::SetOfKeyValuePairs &updates,
+      concordUtils::BlockId &outBlockId) override;
 
   bool isRunning() override {
     return (m_currentRepStatus == RepStatus::Running);
   }
 
-  ReplicaImp(concord::storage::CommConfig &commConfig,
-             concord::storage::ReplicaConsensusConfig &config,
-             concord::storage::BlockchainDBAdapter *dbAdapter,
+  ReplicaImp(CommConfig &commConfig, ReplicaConsensusConfig &config,
+             concord::storage::blockchain::DBAdapter *dbAdapter,
              ReplicaStateSync &replicaStateSync);
   ~ReplicaImp() override;
 
  protected:
   // METHODS
 
-  Status addBlockInternal(const concord::storage::SetOfKeyValuePairs &updates,
-                          concord::storage::BlockId &outBlockId);
-  Status getInternal(concord::storage::BlockId readVersion, Sliver key,
-                     Sliver &outValue,
-                     concord::storage::BlockId &outBlock) const;
-  void insertBlockInternal(concord::storage::BlockId blockId, Sliver block);
-  Sliver getBlockInternal(concord::storage::BlockId blockId) const;
-  concord::storage::BlockchainDBAdapter *getBcDbAdapter() const {
+  concordUtils::Status addBlockInternal(
+      const concord::storage::SetOfKeyValuePairs &updates,
+      concordUtils::BlockId &outBlockId);
+  concordUtils::Status getInternal(concordUtils::BlockId readVersion,
+                                   concordUtils::Sliver key,
+                                   concordUtils::Sliver &outValue,
+                                   concordUtils::BlockId &outBlock) const;
+  void insertBlockInternal(concordUtils::BlockId blockId,
+                           concordUtils::Sliver block);
+  concordUtils::Sliver getBlockInternal(concordUtils::BlockId blockId) const;
+  concord::storage::blockchain::DBAdapter *getBcDbAdapter() const {
     return m_bcDbAdapter;
   }
 
@@ -118,10 +127,11 @@ class ReplicaImp : public concord::storage::IReplica,
   // represents <key,blockId>
   class KeyIDPair {
    public:
-    const Sliver key;
-    const concord::storage::BlockId blockId;
+    const concordUtils::Sliver key;
+    const concordUtils::BlockId blockId;
 
-    KeyIDPair(Sliver s, concord::storage::BlockId i) : key(s), blockId(i) {}
+    KeyIDPair(concordUtils::Sliver s, concordUtils::BlockId i)
+        : key(s), blockId(i) {}
 
     bool operator<(const KeyIDPair &k) const {
       int c = this->key.compare(k.key);
@@ -142,46 +152,49 @@ class ReplicaImp : public concord::storage::IReplica,
 
   // TODO(GG): do we want synchronization here ?
   class StorageWrapperForIdleMode
-      : public concord::storage::ILocalKeyValueStorageReadOnly {
+      : public concord::storage::blockchain::ILocalKeyValueStorageReadOnly {
    private:
     const ReplicaImp *rep;
 
    public:
     StorageWrapperForIdleMode(const ReplicaImp *r);
 
-    virtual Status get(Sliver key, Sliver &outValue) const override;
+    virtual concordUtils::Status get(
+        const concordUtils::Key &key,
+        concordUtils::Value &outValue) const override;
 
-    virtual Status get(concord::storage::BlockId readVersion, Sliver key,
-                       Sliver &outValue,
-                       concord::storage::BlockId &outBlock) const override;
-    virtual concord::storage::BlockId getLastBlock() const override;
+    virtual concordUtils::Status get(
+        concordUtils::BlockId readVersion, const concordUtils::Sliver &key,
+        concordUtils::Sliver &outValue,
+        concordUtils::BlockId &outBlock) const override;
+    virtual concordUtils::BlockId getLastBlock() const override;
 
-    virtual Status getBlockData(
-        concord::storage::BlockId blockId,
+    virtual concordUtils::Status getBlockData(
+        concordUtils::BlockId blockId,
         concord::storage::SetOfKeyValuePairs &outBlockData) const override;
 
-    virtual Status mayHaveConflictBetween(Sliver key,
-                                          concord::storage::BlockId fromBlock,
-                                          concord::storage::BlockId toBlock,
-                                          bool &outRes) const override;
+    virtual concordUtils::Status mayHaveConflictBetween(
+        const concordUtils::Sliver &key, concordUtils::BlockId fromBlock,
+        concordUtils::BlockId toBlock, bool &outRes) const override;
 
-    virtual concord::storage::ILocalKeyValueStorageReadOnlyIterator *
-    getSnapIterator() const override;
+    virtual concord::storage::blockchain::ILocalKeyValueStorageReadOnlyIterator
+        *
+        getSnapIterator() const override;
 
-    virtual Status freeSnapIterator(
-        concord::storage::ILocalKeyValueStorageReadOnlyIterator *iter)
-        const override;
+    virtual concordUtils::Status freeSnapIterator(
+        concord::storage::blockchain::ILocalKeyValueStorageReadOnlyIterator
+            *iter) const override;
     virtual void monitor() const override;
   };
 
-  class StorageIterator
-      : public concord::storage::ILocalKeyValueStorageReadOnlyIterator {
+  class StorageIterator : public concord::storage::blockchain::
+                              ILocalKeyValueStorageReadOnlyIterator {
    private:
     log4cplus::Logger logger;
     const ReplicaImp *rep;
-    concord::storage::BlockId readVersion;
-    concord::storage::KeyValuePair m_current;
-    concord::storage::BlockId m_currentBlock;
+    concordUtils::BlockId readVersion;
+    concordUtils::KeyValuePair m_current;
+    concordUtils::BlockId m_currentBlock;
     bool m_isEnd;
     concord::storage::IDBClient::IDBClientIterator *m_iter;
 
@@ -192,55 +205,55 @@ class ReplicaImp : public concord::storage::IReplica,
       delete m_iter;
     }
 
-    virtual void setReadVersion(concord::storage::BlockId _readVersion) {
+    virtual void setReadVersion(concordUtils::BlockId _readVersion) {
       readVersion = _readVersion;
     }
 
-    virtual concord::storage::KeyValuePair first(
-        concord::storage::BlockId readVersion,
-        concord::storage::BlockId &actualVersion, bool &isEnd) override;
+    virtual concordUtils::KeyValuePair first(
+        concordUtils::BlockId readVersion, concordUtils::BlockId &actualVersion,
+        bool &isEnd) override;
 
     // TODO(SG): Not implemented originally!
-    virtual concord::storage::KeyValuePair first() override {
-      concord::storage::BlockId block = m_currentBlock;
-      concord::storage::BlockId dummy;
+    virtual concordUtils::KeyValuePair first() override {
+      concordUtils::BlockId block = m_currentBlock;
+      concordUtils::BlockId dummy;
       bool dummy2;
       return first(block, dummy, dummy2);
     }
 
     // Assumes lexicographical ordering of the keys, seek the first element
     // k >= key
-    virtual concord::storage::KeyValuePair seekAtLeast(
-        concord::storage::BlockId readVersion, concord::storage::Key key,
-        concord::storage::BlockId &actualVersion, bool &isEnd) override;
+    virtual concordUtils::KeyValuePair seekAtLeast(
+        concordUtils::BlockId readVersion, const concordUtils::Key &key,
+        concordUtils::BlockId &actualVersion, bool &isEnd) override;
 
     // TODO(SG): Not implemented originally!
-    virtual concord::storage::KeyValuePair seekAtLeast(
-        concord::storage::Key key) override {
-      concord::storage::BlockId block = m_currentBlock;
-      concord::storage::BlockId dummy;
+    virtual concordUtils::KeyValuePair seekAtLeast(
+        const concordUtils::Key &key) override {
+      concordUtils::BlockId block = m_currentBlock;
+      concordUtils::BlockId dummy;
       bool dummy2;
       return seekAtLeast(block, key, dummy, dummy2);
     }
 
     // Proceed to next element and return it
-    virtual concord::storage::KeyValuePair next(
-        concord::storage::BlockId readVersion, concord::storage::Key key,
-        concord::storage::BlockId &actualVersion, bool &isEnd) override;
+    virtual concordUtils::KeyValuePair next(
+        concordUtils::BlockId readVersion, const concordUtils::Key &key,
+        concordUtils::BlockId &actualVersion, bool &isEnd) override;
 
     // TODO(SG): Not implemented originally!
-    virtual concord::storage::KeyValuePair next() override {
-      concord::storage::BlockId block = m_currentBlock;
-      concord::storage::BlockId dummy;
+    virtual concordUtils::KeyValuePair next() override {
+      concordUtils::BlockId block = m_currentBlock;
+      concordUtils::BlockId dummy;
       bool dummy2;
       return next(block, getCurrent().first, dummy, dummy2);
     }
 
     // Return current element without moving
-    virtual concord::storage::KeyValuePair getCurrent() override;
+    virtual concordUtils::KeyValuePair getCurrent() override;
 
     virtual bool isEnd() override;
-    virtual Status freeInternalIterator();
+    virtual concordUtils::Status freeInternalIterator();
   };
 
   class BlockchainAppState
@@ -266,7 +279,7 @@ class ReplicaImp : public concord::storage::IReplica,
 
     // from IAppState. represents maximal block number n such that all
     // blocks 1 <= i <= n exist
-    std::atomic<concord::storage::BlockId> m_lastReachableBlock{0};
+    std::atomic<concordUtils::BlockId> m_lastReachableBlock{0};
 
     friend class ReplicaImp;
   };
@@ -278,25 +291,25 @@ class ReplicaImp : public concord::storage::IReplica,
   RepStatus m_currentRepStatus;
   StorageWrapperForIdleMode m_InternalStorageWrapperForIdleMode;
 
-  // storage - TODO(GG): add support for leveldb/rocksdb
-  concord::storage::BlockchainDBAdapter *m_bcDbAdapter = nullptr;
-  concord::storage::BlockId m_lastBlock = 0;
+  concord::storage::blockchain::DBAdapter *m_bcDbAdapter = nullptr;
+  concordUtils::BlockId m_lastBlock = 0;
   bftEngine::ICommunication *m_ptrComm = nullptr;
   bftEngine::ReplicaConfig m_replicaConfig;
   bftEngine::Replica *m_replicaPtr = nullptr;
-  concord::storage::ICommandsHandler *m_cmdHandler = nullptr;
+  ICommandsHandler *m_cmdHandler = nullptr;
   bftEngine::IStateTransfer *m_stateTransfer = nullptr;
   BlockchainAppState *m_appState = nullptr;
-  concord::storage::RocksDBMetadataStorage *m_metadataStorage = nullptr;
+  concord::storage::DBMetadataStorage *m_metadataStorage = nullptr;
   ReplicaStateSync &m_replicaStateSync;
 
   // static methods
-  static Sliver createBlockFromUpdates(
+  static concordUtils::Sliver createBlockFromUpdates(
       const concord::storage::SetOfKeyValuePairs &updates,
       concord::storage::SetOfKeyValuePairs &outUpdatesInNewBlock,
       bftEngine::SimpleBlockchainStateTransfer::StateTransferDigest
           &parentDigest);
-  static concord::storage::SetOfKeyValuePairs fetchBlockData(Sliver block);
+  static concord::storage::SetOfKeyValuePairs fetchBlockData(
+      concordUtils::Sliver block);
 };
 
 }  // namespace consensus

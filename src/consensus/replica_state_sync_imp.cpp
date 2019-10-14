@@ -5,18 +5,18 @@
 
 #include "storage/concord_metadata_storage.h"
 
-using concord::storage::BlockchainDBAdapter;
-using concord::storage::BlockId;
 using concord::storage::ConcordMetadataStorage;
-using concord::storage::ILocalKeyValueStorageReadOnly;
-using concord::storage::Key;
-using concord::storage::KeyManipulator;
+using concord::storage::blockchain::DBAdapter;
+using concord::storage::blockchain::ILocalKeyValueStorageReadOnly;
+using concord::storage::blockchain::KeyManipulator;
+using concordUtils::BlockId;
+using concordUtils::Key;
 
 namespace concord {
 namespace consensus {
 
 uint64_t ReplicaStateSyncImp::execute(log4cplus::Logger &logger,
-                                      BlockchainDBAdapter &bcDBAdapter,
+                                      DBAdapter &bcDBAdapter,
                                       ILocalKeyValueStorageReadOnly &kvs,
                                       BlockId lastReachableBlockId,
                                       uint64_t lastExecutedSeqNum) {

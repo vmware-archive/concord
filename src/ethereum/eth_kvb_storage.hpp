@@ -11,20 +11,21 @@
 #include <log4cplus/loggingmacros.h>
 #include <vector>
 
+#include "blockchain/db_interfaces.h"
+#include "blockchain/db_types.h"
 #include "common/concord_types.hpp"
-#include "consensus/hash_defs.h"
-#include "consensus/sliver.hpp"
 #include "evmjit.h"
-#include "storage/blockchain_db_types.h"
-#include "storage/blockchain_interfaces.h"
+#include "hash_defs.h"
+#include "sliver.hpp"
+#include "status.hpp"
 
 namespace concord {
 namespace ethereum {
 
 class EthKvbStorage {
  private:
-  const concord::storage::ILocalKeyValueStorageReadOnly &roStorage_;
-  concord::storage::IBlocksAppender *blockAppender_;
+  const concord::storage::blockchain::ILocalKeyValueStorageReadOnly &roStorage_;
+  concord::storage::blockchain::IBlocksAppender *blockAppender_;
   concord::storage::SetOfKeyValuePairs updates;
   std::vector<concord::common::EthTransaction> pending_transactions;
   log4cplus::Logger logger;
@@ -37,33 +38,29 @@ class EthKvbStorage {
   const uint8_t TYPE_STORAGE = 0x05;
   const uint8_t TYPE_NONCE = 0x06;
 
-  // 0x10 - 0x1F reserved
-
   // 0x20 used by concord::time::TimeContract
   // 0x21 used by concord::storage::ConcordMetadataStorage
 
-  concord::consensus::Sliver kvb_key(uint8_t type, const uint8_t *bytes,
-                                     size_t length) const;
+  concordUtils::Sliver kvb_key(uint8_t type, const uint8_t *bytes,
+                               size_t length) const;
 
-  concord::consensus::Sliver block_key(
-      const concord::common::EthBlock &blk) const;
-  concord::consensus::Sliver block_key(const evmc_uint256be &hash) const;
-  concord::consensus::Sliver transaction_key(
+  concordUtils::Sliver block_key(const concord::common::EthBlock &blk) const;
+  concordUtils::Sliver block_key(const evmc_uint256be &hash) const;
+  concordUtils::Sliver transaction_key(
       const concord::common::EthTransaction &tx) const;
-  concord::consensus::Sliver transaction_key(const evmc_uint256be &hash) const;
-  concord::consensus::Sliver balance_key(const evmc_address &addr) const;
-  concord::consensus::Sliver nonce_key(const evmc_address &addr) const;
-  concord::consensus::Sliver code_key(const evmc_address &addr) const;
-  concord::consensus::Sliver storage_key(const evmc_address &addr,
-                                         const evmc_uint256be &location) const;
-  concord::consensus::Status get(const concord::consensus::Sliver &key,
-                                 concord::consensus::Sliver &out);
-  concord::consensus::Status get(const concord::storage::BlockId readVersion,
-                                 const concord::consensus::Sliver &key,
-                                 concord::consensus::Sliver &value,
-                                 concord::storage::BlockId &outBlock);
-  void put(const concord::consensus::Sliver &key,
-           const concord::consensus::Sliver &value);
+  concordUtils::Sliver transaction_key(const evmc_uint256be &hash) const;
+  concordUtils::Sliver balance_key(const evmc_address &addr) const;
+  concordUtils::Sliver nonce_key(const evmc_address &addr) const;
+  concordUtils::Sliver code_key(const evmc_address &addr) const;
+  concordUtils::Sliver storage_key(const evmc_address &addr,
+                                   const evmc_uint256be &location) const;
+  concordUtils::Status get(const concordUtils::Sliver &key,
+                           concordUtils::Sliver &out);
+  concordUtils::Status get(const concordUtils::BlockId readVersion,
+                           const concordUtils::Sliver &key,
+                           concordUtils::Sliver &value,
+                           concordUtils::BlockId &outBlock);
+  void put(const concordUtils::Sliver &key, const concordUtils::Sliver &value);
 
   uint64_t next_block_number();
   void add_block(concord::common::EthBlock &blk);
@@ -71,17 +68,20 @@ class EthKvbStorage {
  public:
   // read-only mode
   EthKvbStorage(
-      const concord::storage::ILocalKeyValueStorageReadOnly &roStorage);
+      const concord::storage::blockchain::ILocalKeyValueStorageReadOnly
+          &roStorage);
 
   // read-write mode
   EthKvbStorage(
-      const concord::storage::ILocalKeyValueStorageReadOnly &roStorage,
-      concord::storage::IBlocksAppender *blockAppender);
+      const concord::storage::blockchain::ILocalKeyValueStorageReadOnly
+          &roStorage,
+      concord::storage::blockchain::IBlocksAppender *blockAppender);
 
   ~EthKvbStorage();
 
   bool is_read_only();
-  const concord::storage::ILocalKeyValueStorageReadOnly &getReadOnlyStorage();
+  const concord::storage::blockchain::ILocalKeyValueStorageReadOnly &
+  getReadOnlyStorage();
 
   uint64_t current_block_number();
   concord::common::EthBlock get_block(const evmc_uint256be &hash);
@@ -102,8 +102,7 @@ class EthKvbStorage {
                              const evmc_uint256be &location,
                              uint64_t &block_number);
 
-  concord::consensus::Status write_block(uint64_t timestamp,
-                                         uint64_t gas_limit);
+  concordUtils::Status write_block(uint64_t timestamp, uint64_t gas_limit);
   void reset();
   void add_transaction(concord::common::EthTransaction &tx);
   void set_balance(const evmc_address &addr, evmc_uint256be balance);

@@ -50,9 +50,6 @@ typedef struct concord_context {
   struct evmc_address storage_contract;
 } concord_context;
 
-EVM* conc_object(const struct evmc_context* evmctx);
-const concord_context* conc_context(const struct evmc_context* evmctx);
-
 int conc_account_exists(struct evmc_context* evmctx,
                         const struct evmc_address* address);
 void conc_get_storage(struct evmc_uint256be* result,

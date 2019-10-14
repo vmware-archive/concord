@@ -65,11 +65,7 @@
 
 #include "common/concord_exception.hpp"
 #include "concord_storage.pb.h"
-#include "consensus/hash_defs.h"
-#include "consensus/hex_tools.h"
-#include "consensus/sliver.hpp"
 #include "evmjit.h"
-#include "storage/blockchain_interfaces.h"
 #include "utils/concord_eth_hash.hpp"
 
 using concord::common::BlockNotFoundException;
@@ -80,12 +76,12 @@ using concord::common::ReadOnlyModeException;
 using concord::common::TransactionNotFoundException;
 using concord::common::zero_hash;
 using concord::common::operator<<;
-using concord::consensus::Sliver;
-using concord::consensus::Status;
-using concord::storage::BlockId;
-using concord::storage::IBlocksAppender;
-using concord::storage::ILocalKeyValueStorageReadOnly;
-using concord::storage::SetOfKeyValuePairs;
+using concord::storage::blockchain::IBlocksAppender;
+using concord::storage::blockchain::ILocalKeyValueStorageReadOnly;
+using concordUtils::BlockId;
+using concordUtils::SetOfKeyValuePairs;
+using concordUtils::Sliver;
+using concordUtils::Status;
 
 namespace concord {
 namespace ethereum {

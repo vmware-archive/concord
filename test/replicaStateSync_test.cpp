@@ -8,39 +8,38 @@
 #include <log4cplus/configurator.h>
 #include <log4cplus/hierarchy.h>
 #include <log4cplus/loggingmacros.h>
-#include "consensus/hash_defs.h"
+#include "blockchain/db_adapter.h"
 #include "consensus/replica_state_sync_imp.hpp"
 #include "gtest/gtest.h"
-#include "storage/blockchain_db_adapter.h"
-#include "storage/comparators.h"
+#include "rocksdb/client.h"
+#include "rocksdb/key_comparator.h"
 #include "storage/concord_metadata_storage.h"
-#include "storage/rocksdb_client.h"
 
 using namespace std;
 using namespace log4cplus;
 
 using concord::consensus::ReplicaStateSyncImp;
-using concord::consensus::Sliver;
-using concord::consensus::Status;
-using concord::storage::BlockchainDBAdapter;
-using concord::storage::BlockEntry;
-using concord::storage::BlockHeader;
-using concord::storage::BlockId;
 using concord::storage::ConcordMetadataStorage;
-using concord::storage::IBlocksAppender;
-using concord::storage::ILocalKeyValueStorageReadOnly;
-using concord::storage::ILocalKeyValueStorageReadOnlyIterator;
-using concord::storage::Key;
-using concord::storage::KeyManipulator;
-using concord::storage::RocksDBClient;
-using concord::storage::RocksKeyComparator;
-using concord::storage::SetOfKeyValuePairs;
-using concord::storage::Value;
+using concord::storage::blockchain::BlockEntry;
+using concord::storage::blockchain::BlockHeader;
+using concord::storage::blockchain::DBAdapter;
+using concord::storage::blockchain::IBlocksAppender;
+using concord::storage::blockchain::ILocalKeyValueStorageReadOnly;
+using concord::storage::blockchain::ILocalKeyValueStorageReadOnlyIterator;
+using concord::storage::blockchain::KeyManipulator;
+using concord::storage::rocksdb::Client;
+using concord::storage::rocksdb::KeyComparator;
+using concordUtils::BlockId;
+using concordUtils::Key;
+using concordUtils::SetOfKeyValuePairs;
+using concordUtils::Sliver;
+using concordUtils::Status;
+using concordUtils::Value;
 
 namespace {
 
-RocksDBClient *dbClient = nullptr;
-BlockchainDBAdapter *bcDBAdapter = nullptr;
+Client *dbClient = nullptr;
+DBAdapter *bcDBAdapter = nullptr;
 Logger *logger = nullptr;
 ReplicaStateSyncImp replicaStateSync;
 Value emptyValue;
@@ -53,8 +52,8 @@ BlockId blockIdToBeRead = 0;
 
 class MockILocalKeyValueStorageReadOnly : public ILocalKeyValueStorageReadOnly {
  public:
-  Status get(Key key, Value &outValue) const override;
-  Status get(BlockId readVersion, Sliver key, Sliver &outValue,
+  Status get(const Key &key, Value &outValue) const override;
+  Status get(BlockId readVersion, const Sliver &key, Sliver &outValue,
              BlockId &outBlock) const override {
     return Status::OK();
   }
@@ -63,8 +62,8 @@ class MockILocalKeyValueStorageReadOnly : public ILocalKeyValueStorageReadOnly {
                       SetOfKeyValuePairs &outBlockData) const override {
     return Status::OK();
   }
-  Status mayHaveConflictBetween(Sliver key, BlockId fromBlock, BlockId toBlock,
-                                bool &outRes) const override {
+  Status mayHaveConflictBetween(const Sliver &key, BlockId fromBlock,
+                                BlockId toBlock, bool &outRes) const override {
     return Status::OK();
   }
   ILocalKeyValueStorageReadOnlyIterator *getSnapIterator() const override {
@@ -120,23 +119,25 @@ ConcordMetadataStorage kvbStorage(keyValueStorageMock);
 
 const Sliver blockMetadataInternalKey = kvbStorage.BlockMetadataKey();
 
+KeyManipulator kManipulator = KeyManipulator();
 const Key lastBlockFullKey =
-    KeyManipulator::genDataDbKey(blockMetadataInternalKey, lastBlockId);
+    kManipulator.genDataDbKey(blockMetadataInternalKey, lastBlockId);
 const Value lastBlockValue = kvbStorage.SerializeBlockMetadata(lastSeqNum + 2);
 
 const Key prevBlockFullKey =
-    KeyManipulator::genDataDbKey(blockMetadataInternalKey, prevBlockId);
+    kManipulator.genDataDbKey(blockMetadataInternalKey, prevBlockId);
 const Value prevBlockValue = kvbStorage.SerializeBlockMetadata(lastSeqNum + 1);
 
 const Key prevPrevBlockFullKey =
-    KeyManipulator::genDataDbKey(blockMetadataInternalKey, prevPrevBlockId);
+    kManipulator.genDataDbKey(blockMetadataInternalKey, prevPrevBlockId);
 const Value prevPrevBlockValue = kvbStorage.SerializeBlockMetadata(lastSeqNum);
 
 const Key singleBlockValueFullKey =
-    KeyManipulator::genDataDbKey(blockMetadataInternalKey, singleBlockId);
+    kManipulator.genDataDbKey(blockMetadataInternalKey, singleBlockId);
 const Value singleBlockValue = kvbStorage.SerializeBlockMetadata(lastSeqNum);
 
-Status MockILocalKeyValueStorageReadOnly::get(Key key, Value &outValue) const {
+Status MockILocalKeyValueStorageReadOnly::get(const Key &key,
+                                              Value &outValue) const {
   switch (blockIdToBeRead) {
     case singleBlockId:
       outValue = singleBlockValue;
@@ -170,9 +171,9 @@ TEST(replicaStateSync_test, block_removed) {
   dbClient->put(prevBlockFullKey, prevBlockValue);
   dbClient->put(lastBlockFullKey, lastBlockValue);
 
-  Sliver prevPrevBlockDbKey = KeyManipulator::genBlockDbKey(prevPrevBlockId);
-  Sliver prevBlockDbKey = KeyManipulator::genBlockDbKey(prevBlockId);
-  Sliver lastBlockDbKey = KeyManipulator::genBlockDbKey(lastBlockId);
+  Sliver prevPrevBlockDbKey = kManipulator.genBlockDbKey(prevPrevBlockId);
+  Sliver prevBlockDbKey = kManipulator.genBlockDbKey(prevBlockId);
+  Sliver lastBlockDbKey = kManipulator.genBlockDbKey(lastBlockId);
 
   dbClient->put(prevPrevBlockDbKey,
                 setUpBlockContent(prevPrevBlockFullKey, prevPrevBlockValue));
@@ -199,12 +200,12 @@ int main(int argc, char **argv) {
   BasicConfigurator config(hierarchy, false);
   config.configure();
   const string dbPath = "./replicaStateSync_test";
-  dbClient = new RocksDBClient(dbPath, new RocksKeyComparator());
-  bcDBAdapter = new BlockchainDBAdapter(dbClient);
+  dbClient = new Client(dbPath, new KeyComparator(new KeyManipulator()));
+  bcDBAdapter = new DBAdapter(dbClient);
 
   int res = RUN_ALL_TESTS();
 
   delete bcDBAdapter;
-  delete dbClient;
+  // bcDBAdapter took ownership of dbClient - no need to delete here
   return res;
 }

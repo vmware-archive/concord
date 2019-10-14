@@ -8,7 +8,7 @@
 
 #include "concord_log.hpp"
 #include "concord_types.hpp"
-#include "consensus/sliver.hpp"
+#include "sliver.hpp"
 
 namespace concord {
 namespace common {
@@ -46,7 +46,7 @@ typedef struct EthTransaction {
   std::vector<uint8_t> rlp() const;
   evmc_uint256be hash() const;
   size_t serialize(uint8_t **out);
-  static struct EthTransaction deserialize(concord::consensus::Sliver &input);
+  static struct EthTransaction deserialize(concordUtils::Sliver &input);
 } EthTransaction;
 
 typedef struct EthBlock {
@@ -60,7 +60,7 @@ typedef struct EthBlock {
 
   evmc_uint256be get_hash() const;
   size_t serialize(uint8_t **out);
-  static struct EthBlock deserialize(concord::consensus::Sliver &input);
+  static struct EthBlock deserialize(concordUtils::Sliver &input);
 } EthBlock;
 
 }  // namespace common

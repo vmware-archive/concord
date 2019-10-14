@@ -22,6 +22,8 @@ else
     HOSTNAMES=("concord1" "concord2" "concord3" "concord4")
 fi
 
+sleep 10
+
 for HOSTNAME in ${HOSTNAMES[@]}; do
     # wait for IP address to be available
     while ! getent ahostsv4 $HOSTNAME > /dev/null; do

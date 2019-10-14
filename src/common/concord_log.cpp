@@ -7,8 +7,10 @@
 
 #include <ios>
 
-#include "consensus/hex_tools.h"
 #include "evmjit.h"
+#include "hex_tools.h"
+
+using concordUtils::hexPrint;
 
 namespace concord {
 namespace common {

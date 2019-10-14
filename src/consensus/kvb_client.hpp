@@ -7,13 +7,16 @@
 #define CONCORD_CONSENSUS_KVB_CLIENT_HPP_
 
 #include <log4cplus/loggingmacros.h>
-#include <boost/lockfree/queue.hpp>
 #include <chrono>
+#include <condition_variable>
+#include <mutex>
+#include <queue>
 #include <vector>
 
+#include "client_imp.h"
+#include "client_interface.h"
 #include "concord.pb.h"
-#include "consensus/client_imp.h"
-#include "storage/blockchain_interfaces.h"
+#include "consensus/timing_stat.h"
 #include "time/time_pusher.hpp"
 
 namespace concord {
@@ -28,21 +31,36 @@ namespace consensus {
 
 class KVBClient {
  private:
-  concord::storage::IClient *client_;
+  IClient *client_;
   std::chrono::milliseconds timeout_;
   std::shared_ptr<concord::time::TimePusher> timePusher_;
   log4cplus::Logger logger_;
   static constexpr size_t OUT_BUFFER_SIZE = 512000;
   char m_outBuffer[OUT_BUFFER_SIZE];
 
+  bool timing_enabled_;
+  concordMetrics::Component metrics_;
+  TimingStat timing_bft_;
+  std::chrono::steady_clock::duration timing_log_period_;
+  std::chrono::steady_clock::time_point timing_log_last_;
+
  public:
-  KVBClient(concord::storage::IClient *client,
-            std::chrono::milliseconds timeout,
-            std::shared_ptr<concord::time::TimePusher> timePusher)
+  KVBClient(IClient *client, std::chrono::milliseconds timeout,
+            std::shared_ptr<concord::time::TimePusher> timePusher,
+            bool timing_enabled,
+            std::chrono::steady_clock::duration timing_log_period,
+            std::string timing_id)
       : client_(client),
         timeout_(timeout),
         timePusher_(timePusher),
-        logger_(log4cplus::Logger::getInstance("com.vmware.concord")) {}
+        logger_(log4cplus::Logger::getInstance("com.vmware.concord")),
+        timing_enabled_(timing_enabled),
+        metrics_{concordMetrics::Component(
+            "client_" + timing_id,
+            std::make_shared<concordMetrics::Aggregator>())},
+        timing_bft_("bft_time", timing_enabled, metrics_),
+        timing_log_period_(timing_log_period),
+        timing_log_last_(std::chrono::steady_clock::now()) {}
 
   ~KVBClient() {
     client_->stop();
@@ -52,13 +70,35 @@ class KVBClient {
   bool send_request_sync(com::vmware::concord::ConcordRequest &req,
                          bool isReadOnly,
                          com::vmware::concord::ConcordResponse &resp);
+
+ private:
+  void log_timing();
 };
 
 class KVBClientPool {
  private:
   log4cplus::Logger logger_;
-  boost::lockfree::queue<KVBClient *> clients_;
   std::shared_ptr<concord::time::TimePusher> time_pusher_;
+
+  // Total number of clients under control of this pool.
+  size_t client_count_;
+
+  // Clients that are available for use (i.e. not already in use).
+  std::queue<KVBClient *> clients_;
+
+  // Mutex to grab before modifying clients_.
+  std::mutex clients_mutex_;
+
+  // Condition to wait on if clients_ is empty;
+  std::condition_variable clients_condition_;
+
+  // Non-starvation: which thread gets to claim the next available client
+  std::queue<std::thread::id> wait_queue_;
+
+  // Flag signaling that the pool is shutting down. Once this flag is set,
+  // clients_ should only be taken out of the pool to be destroyed, not to be
+  // used for sending client requests.
+  bool shutdown_;
 
  public:
   // Constructor for KVBClientPool. clients should be a vector of pointers

@@ -1,11 +1,12 @@
 // Copyright (c) 2018-2019 VMware, Inc. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
+
 // Wrapper used by concord::consensus::ConcordCommandsHandler to store BFT
 // metadata (sequence number).
 
 #include "concord_metadata_storage.h"
 #include <log4cplus/loggingmacros.h>
-#include "storage/blockchain_db_types.h"
+#include "kv_types.hpp"
 
 namespace concord {
 namespace storage {

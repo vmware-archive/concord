@@ -16,7 +16,7 @@
 	
 	// The optional 'runArgs' property can be used to specify additional runtime arguments.
 	"runArgs": [
-		"--hostname", "concord1",
+		"--hostname", "concord-dev",
 		"-v", "${localWorkspaceFolder}/docker/resources/devdata/rocksdbdata1:/concord/rocksdbdata",
 		"-v", "${localWorkspaceFolder}/docker/resources/devdata/log1:/concord/log",
 		"-v", "${localWorkspaceFolder}/docker/resources/config-concord1:/concord/config-local",
@@ -29,7 +29,7 @@
 		"--expose", "3505",
 		"-p", "5858:5848",
 		"--network", "compose_default",
-		"--network-alias", "concord1"
+		"--network-alias", "concord-dev"
 		// Uncomment the next line to use Docker from inside the container. See https://aka.ms/vscode-remote/samples/docker-in-docker for details.
 		// "-v","/var/run/docker.sock:/var/run/docker.sock",
 

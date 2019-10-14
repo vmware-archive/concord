@@ -8,12 +8,12 @@
 #include <log4cplus/loggingmacros.h>
 #include <boost/program_options.hpp>
 
+#include "blockchain/db_interfaces.h"
 #include "concord.pb.h"
 #include "config/configuration_manager.hpp"
 #include "consensus/concord_commands_handler.hpp"
 #include "consensus/timing_stat.h"
 #include "ethereum/concord_evm.hpp"
-#include "storage/blockchain_interfaces.h"
 #include "time/time_contract.hpp"
 #include "utils/concord_eth_sign.hpp"
 
@@ -31,16 +31,15 @@ class EthKvbCommandsHandler
   concord::consensus::TimingStat timing_evmrun_;
   concord::consensus::TimingStat timing_evmcreate_;
   concord::consensus::TimingStat timing_evmwrite_;
-  concordMetrics::Component::Handle<concordMetrics::Counter> stat_evmruns_;
-  concordMetrics::Component::Handle<concordMetrics::Counter> stat_evmcreates_;
 
  public:
   EthKvbCommandsHandler(
       concord::ethereum::EVM &concevm, concord::utils::EthSign &verifier,
       const concord::config::ConcordConfiguration &config,
       const concord::config::ConcordConfiguration &nodeConfig,
-      const concord::storage::ILocalKeyValueStorageReadOnly &storage,
-      concord::storage::IBlocksAppender &appender);
+      const concord::storage::blockchain::ILocalKeyValueStorageReadOnly
+          &storage,
+      concord::storage::blockchain::IBlocksAppender &appender);
   ~EthKvbCommandsHandler();
 
   // concord::consensus::ConcordStateMachine
