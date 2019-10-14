@@ -3260,7 +3260,10 @@ void specifyConfiguration(ConcordConfiguration& config) {
                       const_cast<void*>(reinterpret_cast<const void*>(
                           &timeVerificationOptions)));
 
-  config.declareParameter("eth_enable", "Enable Ethereum support.", "true");
+  config.declareParameter(
+      "eth_enable",
+      "Enable Ethereum support.",
+      "true");
   config.tagParameter("eth_enable", publicDefaultableTags);
   config.addValidator("eth_enable", validateBoolean, nullptr);
 
