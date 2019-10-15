@@ -1,8 +1,5 @@
 // Copyright (c) 2018-2019 VMware, Inc. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-//
-// Temporary solution for creating configuration structs for concord-bft
-// Ideally, the ReplicaConfig from BlockchainInterfaces.h
 
 #ifndef CONCORD_CONSENSUS_BFT_CONFIGURATION_HPP_
 #define CONCORD_CONSENSUS_BFT_CONFIGURATION_HPP_
@@ -13,7 +10,9 @@
 #include "IThresholdSigner.h"
 #include "IThresholdVerifier.h"
 #include "config/configuration_manager.hpp"
-#include "storage/blockchain_interfaces.h"
+#include "consensus/client_interface.h"
+#include "consensus/communication.h"
+#include "consensus/replica_interface.h"
 
 namespace concord {
 namespace consensus {
@@ -32,6 +31,7 @@ void initializeSBFTThresholdPublicKeys(
   auxState =
       dynamic_cast<concord::config::ConcordPrimaryConfigurationAuxiliaryState*>(
           config.getAuxiliaryState());
+  assert(auxState);
 
   if (supportDirectProofs) {
     assert(auxState->executionCryptosys);
@@ -110,7 +110,7 @@ inline bool initializeSBFTCrypto(
     uint16_t maxSlow, concord::config::ConcordConfiguration& config,
     concord::config::ConcordConfiguration& replicaConfig,
     std::set<std::pair<uint16_t, std::string>> publicKeysOfReplicas,
-    concord::storage::ReplicaConsensusConfig* outConfig) {
+    concord::consensus::ReplicaConsensusConfig* outConfig) {
   // Threshold signatures
   IThresholdSigner* thresholdSignerForExecution;
   IThresholdVerifier* thresholdVerifierForExecution;
@@ -161,7 +161,7 @@ inline bool initializeSBFTCrypto(
 inline bool initializeSBFTPrincipals(
     concord::config::ConcordConfiguration& config, uint16_t selfNumber,
     uint16_t numOfPrincipals, uint16_t numOfReplicas,
-    concord::storage::CommConfig* outCommConfig,
+    concord::consensus::CommConfig* outCommConfig,
     std::set<std::pair<uint16_t, std::string>>& outReplicasPublicKeys) {
   uint16_t clientProxiesPerReplica =
       config.getValue<uint16_t>("client_proxies_per_replica");
@@ -219,9 +219,9 @@ inline bool initializeSBFTPrincipals(
 inline bool initializeSBFTConfiguration(
     concord::config::ConcordConfiguration& config,
     concord::config::ConcordConfiguration& nodeConfig,
-    concord::storage::CommConfig* commConfig,
-    concord::storage::ClientConsensusConfig* clConf, uint16_t clientIndex,
-    concord::storage::ReplicaConsensusConfig* repConf) {
+    concord::consensus::CommConfig* commConfig,
+    concord::consensus::ClientConsensusConfig* clConf, uint16_t clientIndex,
+    concord::consensus::ReplicaConsensusConfig* repConf) {
   assert(!clConf != !repConf);
 
   // Initialize random number generator

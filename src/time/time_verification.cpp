@@ -1,18 +1,23 @@
 // Copyright (c) 2018-2019 VMware, Inc. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#include "time_signing.hpp"
+#include "time_verification.hpp"
 #include "time_exception.hpp"
 
 #include <google/protobuf/util/time_util.h>
 
 using std::invalid_argument;
+using std::lock_guard;
+using std::mutex;
 using std::string;
+using std::to_string;
 using std::unique_ptr;
+using std::unordered_set;
 using std::vector;
 
 using bftEngine::impl::RSASigner;
 using bftEngine::impl::RSAVerifier;
+using com::vmware::concord::kvb::Time;
 using concord::config::ConcordConfiguration;
 using concord::config::ConfigurationPath;
 
@@ -80,10 +85,11 @@ vector<uint8_t> GetSignableUpdateData(const string& source,
   return signable_data;
 }
 
-TimeSigner::TimeSigner(const ConcordConfiguration& node_config) {
+RSATimeSigner::RSATimeSigner(const ConcordConfiguration& node_config)
+    : sign_mutex_() {
   if (!node_config.hasValue<string>("time_source_id")) {
     throw invalid_argument(
-        "Cannot construct TimeSigner for given node configuration: "
+        "Cannot construct RSATimeSigner for given node configuration: "
         "time_source_id not found.");
   }
 
@@ -91,8 +97,8 @@ TimeSigner::TimeSigner(const ConcordConfiguration& node_config) {
   private_key_path.subpath.reset(new ConfigurationPath("private_key"));
   if (!node_config.hasValue<string>(private_key_path)) {
     throw invalid_argument(
-        "Cannot construct TimeSigner for given node configuration: private_key "
-        "not found for this time source.");
+        "Cannot construct RSATimeSigner for given node configuration: "
+        "private_key not found for this time source.");
   }
 
   sourceID_ = node_config.getValue<string>("time_source_id");
@@ -100,19 +106,23 @@ TimeSigner::TimeSigner(const ConcordConfiguration& node_config) {
   signer_.reset(new RSASigner(private_key_.c_str()));
 }
 
-TimeSigner::TimeSigner(const TimeSigner& original)
+RSATimeSigner::RSATimeSigner(const RSATimeSigner& original)
     : sourceID_(original.sourceID_),
       signer_(new RSASigner(original.private_key_.c_str())),
-      private_key_(original.private_key_.c_str()) {}
+      private_key_(original.private_key_.c_str()),
+      sign_mutex_() {}
 
-TimeSigner& TimeSigner::operator=(const TimeSigner& original) {
+RSATimeSigner::~RSATimeSigner() {}
+
+RSATimeSigner& RSATimeSigner::operator=(const RSATimeSigner& original) {
+  lock_guard<mutex> lock(sign_mutex_);
   sourceID_ = original.sourceID_;
   signer_.reset(new RSASigner(original.private_key_.c_str()));
   private_key_ = original.private_key_;
   return *this;
 }
 
-vector<uint8_t> TimeSigner::Sign(const Timestamp& time) {
+vector<uint8_t> RSATimeSigner::Sign(const Timestamp& time) {
   vector<uint8_t> data_to_sign = GetSignableUpdateData(sourceID_, time);
   vector<uint8_t> signature(signer_->signatureLength(), 0);
   size_t signature_size = 0;
@@ -128,7 +138,8 @@ vector<uint8_t> TimeSigner::Sign(const Timestamp& time) {
 
   if (!sig_made) {
     throw TimeException(
-        "TimeSigner unexpectedly failed to sign a time update for source \"" +
+        "RSATimeSigner unexpectedly failed to sign a time update for source "
+        "\"" +
         sourceID_ + "\".");
   } else if (signature_size < signature.size()) {
     signature.resize(signature_size);
@@ -136,11 +147,11 @@ vector<uint8_t> TimeSigner::Sign(const Timestamp& time) {
   return signature;
 }
 
-TimeVerifier::TimeVerifier(const ConcordConfiguration& config)
+RSATimeVerifier::RSATimeVerifier(const ConcordConfiguration& config)
     : verifiers_(), public_keys_() {
   if (!config.scopeIsInstantiated("node")) {
     throw invalid_argument(
-        "Cannot construct TimeVerifier for given configuration: cannot find "
+        "Cannot construct RSATimeVerifier for given configuration: cannot find "
         "instantiated node scope.");
   }
   for (size_t i = 0; i < config.scopeSize("node"); ++i) {
@@ -151,7 +162,7 @@ TimeVerifier::TimeVerifier(const ConcordConfiguration& config)
       public_key_path.subpath.reset(new ConfigurationPath("public_key"));
       if (!node_config.hasValue<string>(public_key_path)) {
         throw invalid_argument(
-            "Cannot construct TimeVerifier for given configuration: cannot "
+            "Cannot construct RSATimeVerifier for given configuration: cannot "
             "find public key for time source \"" +
             source_id + "\"");
       }
@@ -165,7 +176,7 @@ TimeVerifier::TimeVerifier(const ConcordConfiguration& config)
   }
 }
 
-TimeVerifier::TimeVerifier(const TimeVerifier& original)
+RSATimeVerifier::RSATimeVerifier(const RSATimeVerifier& original)
     : verifiers_(), public_keys_() {
   for (auto time_source : original.public_keys_) {
     verifiers_.emplace(
@@ -175,9 +186,9 @@ TimeVerifier::TimeVerifier(const TimeVerifier& original)
   }
 }
 
-TimeVerifier::~TimeVerifier() {}
+RSATimeVerifier::~RSATimeVerifier() {}
 
-TimeVerifier& TimeVerifier::operator=(const TimeVerifier& original) {
+RSATimeVerifier& RSATimeVerifier::operator=(const RSATimeVerifier& original) {
   verifiers_.clear();
   public_keys_.clear();
   for (auto time_source : original.public_keys_) {
@@ -189,13 +200,11 @@ TimeVerifier& TimeVerifier::operator=(const TimeVerifier& original) {
   return *this;
 }
 
-bool TimeVerifier::HasTimeSource(const string& source) const {
-  return (verifiers_.count(source) > 0);
-}
-
-bool TimeVerifier::Verify(const string& source, const Timestamp& time,
-                          const vector<uint8_t>& signature) {
-  if (verifiers_.count(source) < 1) {
+bool RSATimeVerifier::VerifyReceivedUpdate(const string& source,
+                                           uint16_t client_id,
+                                           const Timestamp& time,
+                                           const vector<uint8_t>* signature) {
+  if ((verifiers_.count(source) < 1) || !signature) {
     return false;
   }
 
@@ -203,7 +212,99 @@ bool TimeVerifier::Verify(const string& source, const Timestamp& time,
   return verifiers_.at(source)->verify(
       reinterpret_cast<char*>(expected_signed_data.data()),
       expected_signed_data.size(),
+      reinterpret_cast<const char*>(signature->data()), signature->size());
+}
+
+bool RSATimeVerifier::VerifyRecordedUpdate(const Time::Sample& record) {
+  if (!record.has_source() || !record.has_time()) {
+    return false;
+  }
+  const string& source = record.source();
+  const Timestamp& time = record.time();
+
+  // Samples with a time equivalent to "the start of time" may be accepted from
+  // storage without verifying their signature, as a signature-less sample at
+  // "the start of time" may be recorded to represent the state where we have
+  // not yet received any updates from the named source.
+  if ((verifiers_.count(source) > 0) && (time == TimeUtil::GetEpoch())) {
+    return true;
+  } else if (!record.has_signature()) {
+    return false;
+  }
+
+  vector<uint8_t> signature(record.signature().begin(),
+                            record.signature().end());
+  vector<uint8_t> expected_signed_data = GetSignableUpdateData(source, time);
+  return verifiers_.at(source)->verify(
+      reinterpret_cast<char*>(expected_signed_data.data()),
+      expected_signed_data.size(),
       reinterpret_cast<const char*>(signature.data()), signature.size());
+}
+
+ClientProxyIDTimeVerifier::ClientProxyIDTimeVerifier(
+    const ConcordConfiguration& config)
+    : client_proxies_by_time_source_() {
+  if (!config.scopeIsInstantiated("node")) {
+    throw invalid_argument(
+        "Cannot construct ClientProxyIDTimeVerifier for given configuration: "
+        "cannot find instantiated node scope.");
+  }
+  for (size_t i = 0; i < config.scopeSize("node"); ++i) {
+    const ConcordConfiguration& node_config = config.subscope("node", i);
+    if (node_config.hasValue<string>("time_source_id")) {
+      string source_id = node_config.getValue<string>("time_source_id");
+      client_proxies_by_time_source_.emplace(source_id,
+                                             unordered_set<uint16_t>());
+      if (node_config.scopeIsInstantiated("client_proxy")) {
+        for (size_t j = 0; j < node_config.scopeSize("client_proxy"); ++j) {
+          const ConcordConfiguration& client_proxy_config =
+              node_config.subscope("client_proxy", j);
+          if (!client_proxy_config.hasValue<uint16_t>("principal_id")) {
+            throw invalid_argument(
+                "Cannot construct ClientProxyIDTimeVerifier for given "
+                "configuration: Concord node with time_source_id " +
+                source_id + " has a client proxy at client_proxy index " +
+                to_string(j) +
+                " (zero-indexed) for which no principal_id value can be "
+                "found.");
+          }
+          client_proxies_by_time_source_[source_id].emplace(
+              client_proxy_config.getValue<uint16_t>("principal_id"));
+        }
+      }
+    }
+  }
+}
+
+ClientProxyIDTimeVerifier::ClientProxyIDTimeVerifier(
+    const ClientProxyIDTimeVerifier& original)
+    : client_proxies_by_time_source_(original.client_proxies_by_time_source_) {}
+
+ClientProxyIDTimeVerifier::~ClientProxyIDTimeVerifier() {}
+
+ClientProxyIDTimeVerifier& ClientProxyIDTimeVerifier::operator=(
+    const ClientProxyIDTimeVerifier& original) {
+  client_proxies_by_time_source_ = original.client_proxies_by_time_source_;
+  return *this;
+}
+
+bool ClientProxyIDTimeVerifier::VerifyReceivedUpdate(
+    const string& source, uint16_t client_id, const Timestamp& time,
+    const vector<uint8_t>* signature) {
+  if (client_proxies_by_time_source_.count(source) < 1) {
+    return false;
+  }
+  return client_proxies_by_time_source_.at(source).count(client_id) > 0;
+}
+
+bool ClientProxyIDTimeVerifier::VerifyRecordedUpdate(
+    const Time::Sample& record) {
+  // Note we cannot validate that the client proxy from which the sample was
+  // received matches the time_source_id because the client proxy ID is not
+  // recorded in the time sample records.
+  return record.has_source() && record.has_time() &&
+         (client_proxies_by_time_source_.count(record.source()) > 0) &&
+         (!client_proxies_by_time_source_.at(record.source()).empty());
 }
 
 }  // namespace time

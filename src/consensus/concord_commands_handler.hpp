@@ -6,9 +6,10 @@
 #ifndef CONSENSUS_CONCORD_COMMANDS_HANDLER_HPP_
 #define CONSENSUS_CONCORD_COMMANDS_HANDLER_HPP_
 
+#include "blockchain/db_interfaces.h"
+#include "commands_handler.h"
 #include "concord.pb.h"
 #include "consensus/timing_stat.h"
-#include "storage/blockchain_interfaces.h"
 #include "storage/concord_metadata_storage.h"
 #include "time/time_contract.hpp"
 #include "time/time_reading.hpp"
@@ -19,8 +20,9 @@
 namespace concord {
 namespace consensus {
 
-class ConcordCommandsHandler : public concord::storage::ICommandsHandler,
-                               public concord::storage::IBlocksAppender {
+class ConcordCommandsHandler
+    : public ICommandsHandler,
+      public concord::storage::blockchain::IBlocksAppender {
  private:
   log4cplus::Logger logger_;
   concord::storage::ConcordMetadataStorage metadata_storage_;
@@ -31,7 +33,7 @@ class ConcordCommandsHandler : public concord::storage::ICommandsHandler,
   void log_timing();
 
  protected:
-  const concord::storage::ILocalKeyValueStorageReadOnly &storage_;
+  const concord::storage::blockchain::ILocalKeyValueStorageReadOnly &storage_;
   bool timing_enabled_;
   concordMetrics::Component metrics_;
   TimingStat timing_parse_;
@@ -41,7 +43,7 @@ class ConcordCommandsHandler : public concord::storage::ICommandsHandler,
   TimingStat timing_serialize_;
 
  public:
-  concord::storage::IBlocksAppender &appender_;
+  concord::storage::blockchain::IBlocksAppender &appender_;
   std::unique_ptr<concord::time::TimeContract> time_;
 
   com::vmware::concord::ConcordRequest request_;
@@ -50,21 +52,23 @@ class ConcordCommandsHandler : public concord::storage::ICommandsHandler,
  public:
   ConcordCommandsHandler(
       const concord::config::ConcordConfiguration &config,
-      const concord::storage::ILocalKeyValueStorageReadOnly &storage,
-      concord::storage::IBlocksAppender &appender);
+      const concord::storage::blockchain::ILocalKeyValueStorageReadOnly
+          &storage,
+      concord::storage::blockchain::IBlocksAppender &appender);
   virtual ~ConcordCommandsHandler() {}
 
-  // Callback from the replica via concord::storage::ICommandsHandler.
+  // Callback from the replica via ICommandsHandler.
   int execute(uint16_t client_id, uint64_t sequence_num, bool read_only,
               uint32_t request_size, const char *request,
               uint32_t max_reply_size, char *out_reply,
               uint32_t &out_reply_size) override;
 
-  // Our concord::storage::IBlocksAppender implementation, where we can add
-  // lower-level data like time contract status, before forwarding to the true
-  // appender.
-  Status addBlock(const concord::storage::SetOfKeyValuePairs &updates,
-                  concord::storage::BlockId &out_block_id) override;
+  // Our concord::storage::blockchain::IBlocksAppender implementation, where we
+  // can add lower-level data like time contract status, before forwarding to
+  // the true appender.
+  concordUtils::Status addBlock(
+      const concord::storage::SetOfKeyValuePairs &updates,
+      concordUtils::BlockId &out_block_id) override;
 
   // Functions the subclass must implement are below here.
 

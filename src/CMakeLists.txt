@@ -1,3 +1,6 @@
+# Copyright (c) 2018-2019 VMware, Inc. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 file(GLOB concord_src "main.cpp"
   "api/*.cpp"        "api/*.hpp"
   "config/*.cpp"     "config/*.hpp"

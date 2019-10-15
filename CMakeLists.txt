@@ -12,6 +12,7 @@ set(CMAKE_CXX_EXTENSIONS Off)
 
 # Storage options
 set(USE_ROCKSDB True)
+set(BUILD_ROCKSDB_STORAGE TRUE CACHE BOOL "concord needs rocksdb")
 
 #concord flags
 # Default USE_LOG4CPP to true

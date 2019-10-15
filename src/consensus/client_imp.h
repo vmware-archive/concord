@@ -1,7 +1,7 @@
 // Copyright (c) 2018-2019 VMware, Inc. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 //
-// KV Blockchain client definition.
+// Shim between generic KVB and Concord-specific commands handlers.
 
 #ifndef CONCORD_CONSENSUS_CLIENT_IMP_H_
 #define CONCORD_CONSENSUS_CLIENT_IMP_H_
@@ -11,43 +11,41 @@
 #include <map>
 #include "ICommunication.hpp"
 #include "SimpleClient.hpp"
-#include "storage/blockchain_interfaces.h"
+#include "blockchain/db_interfaces.h"
+#include "client_interface.h"
+#include "communication.h"
 
 namespace concord {
 namespace consensus {
 
-concord::storage::IClient *createClient(
-    concord::storage::CommConfig &commConfig,
-    const concord::storage::ClientConsensusConfig &conf);
+IClient *createClient(CommConfig &commConfig,
+                      const ClientConsensusConfig &conf);
 
-void releaseClient(concord::storage::IClient *r);
+void releaseClient(IClient *r);
 
-class ClientImp : public concord::storage::IClient {
+class ClientImp : public IClient {
  public:
-  // concord::storage::IClient methods
-  virtual Status start() override;
-  virtual Status stop() override;
+  // IClient methods
+  virtual concordUtils::Status start() override;
+  virtual concordUtils::Status stop() override;
 
   virtual bool isRunning() override;
 
-  virtual Status invokeCommandSynch(const char *request, uint32_t requestSize,
-                                    bool isReadOnly,
-                                    std::chrono::milliseconds timeout,
-                                    uint32_t replySize, char *outReply,
-                                    uint32_t *outActualReplySize) override;
+  virtual concordUtils::Status invokeCommandSynch(
+      const char *request, uint32_t requestSize, bool isReadOnly,
+      std::chrono::milliseconds timeout, uint32_t replySize, char *outReply,
+      uint32_t *outActualReplySize) override;
 
  protected:
   // ctor & dtor
-  ClientImp(concord::storage::CommConfig &commConfig,
-            const concord::storage::ClientConsensusConfig &conf);
+  ClientImp(CommConfig &commConfig, const ClientConsensusConfig &conf);
   virtual ~ClientImp();
 
   int m_status;
 
-  friend concord::storage::IClient *createClient(
-      concord::storage::CommConfig &commConfig,
-      const concord::storage::ClientConsensusConfig &conf);
-  friend void releaseClient(concord::storage::IClient *r);
+  friend IClient *createClient(CommConfig &commConfig,
+                               const ClientConsensusConfig &conf);
+  friend void releaseClient(IClient *r);
 
  private:
   bftEngine::SimpleClient *m_bftClient = nullptr;

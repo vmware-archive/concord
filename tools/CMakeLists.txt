@@ -1,6 +1,3 @@
-# Copyright (c) 2018-2019 VMware, Inc. All Rights Reserved.
-# SPDX-License-Identifier: Apache-2.0
-
 string(APPEND CMAKE_CXX_FLAGS " -Wall")
 if(NOT APPLE)
 string(APPEND CMAKE_CXX_FLAGS " -Werror")
@@ -59,6 +56,15 @@ target_link_libraries(conc_getpeers
                       proto ${PROTOBUF_LIBRARIES}
                       ${Boost_LIBRARIES})
 
+add_executable(conc_reconfig
+               "conc_reconfig.cpp"
+               ${PROTO_SRCS} ${PROTO_HDRS})
+target_link_libraries(conc_reconfig
+                      concmdutil
+                      protobuf::libprotobuf
+                      proto ${PROTOBUF_LIBRARIES}
+                      ${Boost_LIBRARIES})
+
 add_executable(conc_time
                "conc_time.cpp"
                ${PROJECT_SOURCE_DIR}/src/config/configuration_manager.cpp
@@ -95,7 +101,7 @@ target_link_libraries(ecsign
                       ${Cryptopp_LIBRARIES})
 
 add_executable(conc_rocksdb_adp "conc_rocksdb_adp.cpp")
-target_link_libraries(conc_rocksdb_adp concord_consensus log4cplus)
+target_link_libraries(conc_rocksdb_adp concord_consensus log4cplus concordbft_storage)
 target_include_directories(conc_rocksdb_adp PUBLIC ${Cryptopp_INCLUDE_DIRS})
 
 # conc_genconfig also needs to see "../src" to find its includes.
@@ -108,4 +114,3 @@ target_link_libraries(conc_genconfig
                       concord_consensus
                       log4cplus
                       $<TARGET_OBJECTS:logging_dev>)
-

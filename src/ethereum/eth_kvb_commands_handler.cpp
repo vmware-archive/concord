@@ -21,7 +21,6 @@
 #include "common/concord_exception.hpp"
 #include "concord.pb.h"
 #include "config/configuration_manager.hpp"
-#include "consensus/hex_tools.h"
 #include "ethereum/concord_evm.hpp"
 #include "ethereum/eth_kvb_storage.hpp"
 #include "time/time_contract.hpp"
@@ -52,8 +51,8 @@ using concord::utils::RLPBuilder;
 using concord::utils::to_evmc_uint256be;
 using concord::common::operator<<;
 
-using concord::storage::IBlocksAppender;
-using concord::storage::ILocalKeyValueStorageReadOnly;
+using concord::storage::blockchain::IBlocksAppender;
+using concord::storage::blockchain::ILocalKeyValueStorageReadOnly;
 
 namespace concord {
 namespace ethereum {
@@ -62,8 +61,8 @@ EthKvbCommandsHandler::EthKvbCommandsHandler(
     EVM &concevm, EthSign &verifier,
     const concord::config::ConcordConfiguration &config,
     const concord::config::ConcordConfiguration &nodeConfig,
-    const concord::storage::ILocalKeyValueStorageReadOnly &storage,
-    concord::storage::IBlocksAppender &appender)
+    const concord::storage::blockchain::ILocalKeyValueStorageReadOnly &storage,
+    concord::storage::blockchain::IBlocksAppender &appender)
     : ConcordCommandsHandler(config, storage, appender),
       logger(log4cplus::Logger::getInstance("com.vmware.concord")),
       concevm_(concevm),
@@ -72,9 +71,7 @@ EthKvbCommandsHandler::EthKvbCommandsHandler(
       gas_limit_(config.getValue<uint64_t>("gas_limit")),
       timing_evmrun_("evmrun", timing_enabled_, metrics_),
       timing_evmcreate_("evmcreate", timing_enabled_, metrics_),
-      timing_evmwrite_("evmwrite", timing_enabled_, metrics_),
-      stat_evmruns_{metrics_.RegisterCounter("evmruns")},
-      stat_evmcreates_{metrics_.RegisterCounter("evmcreates")} {}
+      timing_evmwrite_("evmwrite", timing_enabled_, metrics_) {}
 
 EthKvbCommandsHandler::~EthKvbCommandsHandler() {
   // no other deinitialization necessary
@@ -523,7 +520,7 @@ bool EthKvbCommandsHandler::handle_block_request(
 
   // According to ethRPC requests the block number string can be either a hex
   // number or it can be one of "latest", "earliest", "pending". Since concord
-  // only accepts uint64_t for block number EthRPC will replace "latest" with -1
+  // only accepts uint64_t for block number helen will replace "latest" with -1
   // "earliest" with 0 (genesis block) and "pending" with -1 (since in concord
   // blocks are generated instantaneously we can say that "latest" =
   // "pending". Here we will have to first convert -1 to current block number
@@ -1014,7 +1011,6 @@ evmc_result EthKvbCommandsHandler::run_evm(const EthRequest &request,
     memcpy(message.destination.bytes, request.addr_to().c_str(),
            sizeof(message.destination));
 
-    stat_evmruns_.Get().Inc();
     timing_evmrun_.Start();
     result = concevm_.run(message, timestamp, kvbStorage, logs, message.sender,
                           message.destination);
@@ -1027,7 +1023,6 @@ evmc_result EthKvbCommandsHandler::run_evm(const EthRequest &request,
     evmc_address contract_address =
         concevm_.contract_destination(message.sender, nonce);
 
-    stat_evmcreates_.Get().Inc();
     timing_evmcreate_.Start();
     result = concevm_.create(contract_address, message, timestamp, kvbStorage,
                              logs, message.sender);

@@ -49,7 +49,18 @@ TimePusher::TimePusher(const concord::config::ConcordConfiguration &config,
     timeSourceId_ = "";
   }
 
-  signer_.reset(new TimeSigner(nodeConfig));
+  if (config.hasValue<string>("time_verification")) {
+    if (config.getValue<string>("time_verification") == "rsa-time-signing") {
+      signer_.reset(new RSATimeSigner(nodeConfig));
+    } else if ((config.getValue<string>("time_verification") !=
+                "bft-client-proxy-id") &&
+               (config.getValue<string>("time_verification") != "none")) {
+      throw invalid_argument(
+          "Cannot construct TimePusher: Unrecognized selection for "
+          "time_verification in configuration: \"" +
+          config.getValue<string>("time_verification") + "\".");
+    }
+  }
 }
 
 void TimePusher::Start(KVBClientPool *clientPool) {
@@ -89,9 +100,6 @@ void TimePusher::AddTimeToCommand(ConcordRequest &command) {
 }
 
 void TimePusher::AddTimeToCommand(ConcordRequest &command, Timestamp time) {
-  assert(signer_);
-  std::vector<uint8_t> signature = signer_->Sign(time);
-
   TimeRequest *tr = command.mutable_time_request();
 
   // Only add a sample if there isn't one, to allow tests to specify samples for
@@ -101,7 +109,10 @@ void TimePusher::AddTimeToCommand(ConcordRequest &command, Timestamp time) {
     ts->set_source(timeSourceId_);
     Timestamp *t = new Timestamp(time);
     ts->set_allocated_time(t);
-    ts->set_signature(signature.data(), signature.size());
+    if (signer_) {
+      vector<uint8_t> signature = signer_->Sign(time);
+      ts->set_signature(signature.data(), signature.size());
+    }
   }
 
   lastPublishTime_ = time;

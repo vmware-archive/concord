@@ -1,5 +1,6 @@
 // Copyright (c) 2018-2019 VMware, Inc. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
+
 #include <regex>
 
 #include <boost/algorithm/string.hpp>
@@ -13,6 +14,7 @@ using std::invalid_argument;
 using std::ostream;
 using std::string;
 using std::to_string;
+using std::unordered_set;
 using std::vector;
 
 using boost::program_options::command_line_parser;
@@ -23,6 +25,7 @@ using log4cplus::Logger;
 
 using nlohmann::json;
 
+using concord::config::ConcordConfiguration;
 using concord::config::detectLocalNode;
 
 variables_map initialize_config(concord::config::ConcordConfiguration& config,
@@ -349,23 +352,6 @@ const ConcordConfiguration* ConcordConfiguration::getRootConfig() const {
 }
 
 template <>
-bool ConcordConfiguration::interpretAs<int>(string value, int& output) const {
-  try {
-    output = std::stoi(value);
-    return true;
-  } catch (invalid_argument& e) {
-    return false;
-  } catch (std::out_of_range& e) {
-    return false;
-  }
-}
-
-template <>
-string ConcordConfiguration::getTypeName<int>() const {
-  return "int";
-}
-
-template <>
 bool ConcordConfiguration::interpretAs<short>(string value,
                                               short& output) const {
   int intVal;
@@ -485,6 +471,29 @@ bool ConcordConfiguration::interpretAs<uint64_t>(string value,
 template <>
 string ConcordConfiguration::getTypeName<uint64_t>() const {
   return "uint64_t";
+}
+
+template <>
+bool ConcordConfiguration::interpretAs<int32_t>(string value,
+                                                int32_t& output) const {
+  long long intVal;
+  try {
+    intVal = std::stoll(value);
+  } catch (invalid_argument& e) {
+    return false;
+  } catch (std::out_of_range& e) {
+    return false;
+  }
+  if ((intVal > INT32_MAX) || (intVal < INT32_MIN)) {
+    return false;
+  }
+  output = static_cast<int32_t>(intVal);
+  return true;
+}
+
+template <>
+string ConcordConfiguration::getTypeName<int32_t>() const {
+  return "int32_t";
 }
 
 static const vector<string> kValidBooleansTrue({"t", "T", "true", "True",
@@ -2002,6 +2011,8 @@ static const std::pair<unsigned long long, unsigned long long> kUInt16Limits(
     {0, UINT16_MAX});
 static const std::pair<unsigned long long, unsigned long long> kUInt32Limits(
     {0, UINT32_MAX});
+static const std::pair<long long, long long> kInt32Limits({INT32_MIN,
+                                                           INT32_MAX});
 
 // We enforce a minimum size on communication buffers to ensure at least
 // minimal error responses can be passed through them.
@@ -2024,6 +2035,44 @@ static ConcordConfiguration::ParameterStatus validateBoolean(
                       "\". A boolean (e.g. \"true\" or \"false\") is required.";
   }
   return ConcordConfiguration::ParameterStatus::INVALID;
+}
+
+static ConcordConfiguration::ParameterStatus validateInt(
+    const string& value, const ConcordConfiguration& config,
+    const ConfigurationPath& path, string* failureMessage, void* state) {
+  assert(state);
+  const std::pair<long long, long long>* limits =
+      static_cast<std::pair<long long, long long>*>(state);
+  assert(limits->first <= limits->second);
+
+  long long intVal;
+  try {
+    intVal = std::stoll(value);
+  } catch (invalid_argument& e) {
+    if (failureMessage) {
+      *failureMessage = "Invalid value for parameter " + path.toString() +
+                        ": \"" + value + "\". An integer is required.";
+    }
+    return ConcordConfiguration::ParameterStatus::INVALID;
+  } catch (std::out_of_range& e) {
+    if (failureMessage) {
+      *failureMessage =
+          "Invalid value for parameter " + path.toString() + ": \"" + value +
+          "\". An integer in the range (" + to_string(limits->first) + ", " +
+          to_string(limits->second) + "), inclusive, is required.";
+    }
+    return ConcordConfiguration::ParameterStatus::INVALID;
+  }
+  if ((intVal < limits->first) || (intVal > limits->second)) {
+    if (failureMessage) {
+      *failureMessage =
+          "Invalid value for parameter " + path.toString() + ": \"" + value +
+          "\". An integer in the range (" + to_string(limits->first) + ", " +
+          to_string(limits->second) + "), inclusive, is required.";
+    }
+    return ConcordConfiguration::ParameterStatus::INVALID;
+  }
+  return ConcordConfiguration::ParameterStatus::VALID;
 }
 
 static ConcordConfiguration::ParameterStatus validateUInt(
@@ -2711,6 +2760,13 @@ static ConcordConfiguration::ParameterStatus computePrincipalId(
   return ConcordConfiguration::ParameterStatus::VALID;
 }
 
+static ConcordConfiguration::ParameterStatus computeTimeSourceId(
+    const ConcordConfiguration& config, const ConfigurationPath& path,
+    string* output, void* state) {
+  *output = "time-source" + to_string(path.index);
+  return ConcordConfiguration::ParameterStatus::VALID;
+}
+
 const size_t kRSAPublicKeyHexadecimalLength = 584;
 // Note we do not have a correpsonding kRSAPrivateKeyHexadecimalLength constant
 // because the hexadecimal length of RSA private keys actually seems to vary a
@@ -2848,6 +2904,35 @@ static ConcordConfiguration::ParameterStatus validatePrincipalHost(
                         "use_loopback_for_local_hosts is enabled.";
       return ConcordConfiguration::ParameterStatus::INVALID;
     }
+  }
+  return ConcordConfiguration::ParameterStatus::VALID;
+}
+
+const unordered_set<string> timeVerificationOptions({"rsa-time-signing",
+                                                     "bft-client-proxy-id",
+                                                     "none"});
+
+static ConcordConfiguration::ParameterStatus validateEnumeratedOption(
+    const string& value, const ConcordConfiguration& config,
+    const ConfigurationPath& path, string* failureMessage, void* state) {
+  assert(state);
+  const unordered_set<string>* options =
+      const_cast<const unordered_set<string>*>(
+          static_cast<unordered_set<string>*>(state));
+  if (options->count(value) < 1) {
+    *failureMessage = "Unrecognized or unsupported value for " +
+                      path.toString() + ": \"" + value +
+                      "\". Recognized values include: ";
+    bool was_first = true;
+    for (const auto& option : *options) {
+      if (!was_first) {
+        *failureMessage += ", ";
+      }
+      *failureMessage += "\"" + option + "\"";
+      was_first = false;
+    }
+    *failureMessage += ".";
+    return ConcordConfiguration::ParameterStatus::INVALID;
   }
   return ConcordConfiguration::ParameterStatus::VALID;
 }
@@ -3153,6 +3238,33 @@ void specifyConfiguration(ConcordConfiguration& config) {
   config.addValidator("FEATURE_time_service", validateBoolean, nullptr);
 
   config.declareParameter(
+      "time_verification",
+      "What mechanism to use, if any, to verify received time samples "
+      "allegedly from configured time sources are legitimate and not forgeries "
+      "by a malicious or otherwise Byzantine-faulty party impersonating a time "
+      "source. Currently supported time verification methods are: "
+      "\"rsa-time-signing\", \"bft-client-proxy-id\", and \"none\". If "
+      "\"rsa-time-signing\" is selected, each time source will sign its time "
+      "updates with its replica's RSA private key to prove the sample's "
+      "legitimacy; these signatures will be transmitted and recorded with each "
+      "time sample. If \"bft-client-proxy-id\" is selected, the time contract "
+      "will scrutinize the Concord-BFT client proxy ID submitting each time "
+      "update and check it matches the node for the claimed time source "
+      "(Concord-BFT should guarantee it is intractable to impersonate client "
+      "proxies to it without that proxy's private key). If \"none\" is "
+      "selected, no verification of received time samples will be used (this "
+      "is NOT recommended for production deployments).",
+      "rsa-time-signing");
+  config.tagParameter("time_verification", publicDefaultableTags);
+  config.addValidator("time_verification", validateEnumeratedOption,
+                      const_cast<void*>(reinterpret_cast<const void*>(
+                          &timeVerificationOptions)));
+
+  config.declareParameter("eth_enable", "Enable Ethereum support.", "true");
+  config.tagParameter("eth_enable", publicDefaultableTags);
+  config.addValidator("eth_enable", validateBoolean, nullptr);
+
+  config.declareParameter(
       "replica_timing_enabled",
       "Whether or not timing stats about replica execution should be captured. "
       "If \"true\" the captured stats will be printed every "
@@ -3167,6 +3279,23 @@ void specifyConfiguration(ConcordConfiguration& config) {
   config.tagParameter("replica_timing_log_period_sec", publicDefaultableTags);
   config.addValidator(
       "replica_timing_log_period_sec", validateUInt,
+      const_cast<void*>(reinterpret_cast<const void*>(&kUInt32Limits)));
+
+  config.declareParameter(
+      "client_timing_enabled",
+      "Whether or not timing stats about client use should be captured. "
+      "If \"true\" the captured stats will be printed every "
+      "client_timing_log_period_sec seconds.",
+      "true");
+  config.tagParameter("client_timing_enabled", publicDefaultableTags);
+
+  config.declareParameter(
+      "client_timing_log_period_sec",
+      "How often to log accumulated client execution statistics, in seconds.",
+      "5");
+  config.tagParameter("client_timing_log_period_sec", publicDefaultableTags);
+  config.addValidator(
+      "client_timing_log_period_sec", validateUInt,
       const_cast<void*>(reinterpret_cast<const void*>(&kUInt32Limits)));
 
   node.declareParameter(
@@ -3258,10 +3387,10 @@ void specifyConfiguration(ConcordConfiguration& config) {
 
   node.declareParameter(
       "time_source_id",
-      "Name that this node will use when publishing its reading to the time "
-      "contract. If no value is given, this node will not publish its time. "
+      "The source name `time-sourceX` is based on the node index."
       "Ignored unless FEATURE_time_service is \"true\".");
-  node.tagParameter("time_source_id", publicOptionalTags);
+  node.tagParameter("time_source_id", publicGeneratedTags);
+  node.addGenerator("time_source_id", computeTimeSourceId, nullptr);
 
   node.declareParameter(
       "time_pusher_period_ms",
@@ -3269,6 +3398,9 @@ void specifyConfiguration(ConcordConfiguration& config) {
       "milliseconds. Ignored unless FEATURE_time_service is \"true\", and "
       "time_source_id is given.");
   node.tagParameter("time_pusher_period_ms", publicOptionalTags);
+  node.addValidator(
+      "time_pusher_period_ms", validateInt,
+      const_cast<void*>(reinterpret_cast<const void*>(&kInt32Limits)));
 
   replica.declareParameter("commit_private_key",
                            "Private key for this replica under the general "
