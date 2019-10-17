@@ -13,7 +13,7 @@ To get started:
 docker/build_images.sh
 
 # Run a 4-node Concord system and the EtherRPC bridge with docker compose
-docker-compose -f docker/compose/simple4.yml
+docker-compose -f docker/compose/simple4.yml up
 
 # Connect to Concord with Truffle (in a different window)
 docker run -it concord-truffle:latest
