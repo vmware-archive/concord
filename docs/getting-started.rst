@@ -24,7 +24,7 @@ Concord cluster.
 
 To launch a simple 4-node Concord cluster, launch the ``simple4.yml`` file:: 
 
-   docker-compose -f docker/compose/simple4.yml
+   docker-compose -f docker/compose/simple4.yml up
 
 You should see some messages go by, indicating the cluster is starting up. Once the cluster
 is up, the next setup is to interact with it. Since this cluster comes with the ``ethRPC`` bridge,
