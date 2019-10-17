@@ -12,7 +12,7 @@
 #include <stdexcept>
 #include <vector>
 #include "common/concord_types.hpp"
-#include "evmjit.h"
+#include "evmc/evmc.h"
 #include "utils/concord_utils.hpp"
 #include "utils/json.hpp"
 

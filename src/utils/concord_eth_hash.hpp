@@ -7,7 +7,7 @@
 #define UTILS_CONCORD_ETH_HASH_HPP
 
 #include <log4cplus/loggingmacros.h>
-#include "evmjit.h"
+#include "evmc/evmc.h"
 
 namespace concord {
 namespace utils {

@@ -1,5 +1,5 @@
 
-FROM concord-builder AS concord-build
+FROM vmwconcord/concord-builder:0.1 AS concord-build
 
 # The build context should be the root of the repository.
 
@@ -13,6 +13,7 @@ COPY .git /.git
 
 WORKDIR /concord
 COPY . /concord
+
 RUN git submodule update --init --recursive
 WORKDIR /concord/build
 RUN cmake -DCMAKE_C_COMPILER=/usr/bin/clang-7 -DCMAKE_CXX_COMPILER=/usr/bin/clang++-7 -DCMAKE_BUILD_TYPE=RELWITHDEBINFO -DCMAKE_CXX_FLAGS="-march=x86-64 -mtune=generic" .. && CTEST_OUTPUT_ON_FAILURE=true make -j$(nproc) all test
@@ -52,10 +53,10 @@ COPY --from=concord-build /usr/local/lib/libcryptopp* /usr/local/lib/
 COPY --from=concord-build /usr/local/lib/liblog4cplus* /usr/local/lib/
 COPY --from=concord-build /opt/protobuf /opt/protobuf
 
-# evmjit is statically compiled, so we don't need to copy
 COPY --from=concord-build /usr/local/lib/librelic* /usr/local/lib/
 COPY --from=concord-build /usr/local/lib/librocksdb.* /usr/local/lib/
 COPY --from=concord-build /usr/local/lib/libsecp256k1* /usr/local/lib/
+COPY --from=concord-build /usr/local/lib/libevmone* /usr/local/lib/
 
 WORKDIR /concord/resources
 COPY --from=concord-build /concord/build/src/concord /concord/concord

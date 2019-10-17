@@ -14,8 +14,6 @@ RUN apt-get update && apt-get -y install \
     build-essential \
     clang-7 \
     clang-format-7 \
-    cmake \
-    curl \
     g++ \
     git \
     libboost1.65-dev \
@@ -27,11 +25,10 @@ RUN apt-get update && apt-get -y install \
     libgmp3-dev \
     liblz4-dev \
     libprotobuf-dev \
+    libssl-dev \
     libsnappy-dev \
     libtool \
     libzstd-dev \
-    llvm-5.0 \
-    llvm-5.0-dev \
     libyaml-cpp0.5v5 \
     libyaml-cpp-dev \
     pkg-config \
@@ -45,6 +42,31 @@ RUN ln -s /usr/bin/clang-format-7 /usr/bin/clang-format
 RUN ln -s /usr/bin/clang-format-diff-7 /usr/bin/clang-format-diff
 
 RUN pip3 install cpplint
+
+WORKDIR /
+RUN mkdir cmake &&\
+    cd cmake && \
+    wget https://cmake.org/files/v3.15/cmake-3.15.4.tar.gz && \
+    tar -xzvf cmake-3.15.4.tar.gz && \
+    cd cmake-3.15.4  && \
+    ./bootstrap && \
+    make -j${MAKE_PARALLELISM} && \
+    make install && \
+    cd / && \
+    rm -rf cmake
+
+# curl (with SSL) is needed for evmone
+WORKDIR /
+RUN mkdir curl && \
+    cd curl && \
+    wget https://curl.haxx.se/download/curl-7.66.0.tar.gz && \
+    tar xvzf curl-7.66.0.tar.gz && \
+    cd curl-7.66.0 && \
+    ./configure --with-ssl && \
+    make && \
+    make install && \
+    cd / && \
+    rm -rf curl
 
 WORKDIR /
 RUN git clone https://github.com/google/googletest.git && \
@@ -62,37 +84,29 @@ WORKDIR /cryptopp
 COPY ./patches/cross-platform-cryptopp.patch .
 RUN git apply --whitespace=nowarn cross-platform-cryptopp.patch
 WORKDIR /cryptopp/build
-RUN cmake -DCMAKE_CXX_FLAGS="-march=x86-64 -mtune=generic" .. && make -j${MAKE_PARALLELISM} && make install
+RUN cmake -DCMAKE_CXX_FLAGS="-march=x86-64 -mtune=generic" .. && make -j${MAKE_PARALLELISM} && make install && cd / && rm -rf /cryptopp
 
 WORKDIR /
 RUN git clone https://github.com/log4cplus/log4cplus.git && \
     cd /log4cplus && \
     git checkout REL_1_2_1
 WORKDIR /log4cplus
-RUN autoconf && ./configure CXXFLAGS="--std=c++11 -march=x86-64 -mtune=generic" && make -j${MAKE_PARALLELISM} && make install
-
-WORKDIR /
-RUN git clone https://github.com/ethereum/evmjit.git && \
-    cd /evmjit && \
-    git checkout 886941b07370a81ce565f0ffbd9b8595a24ea7a4 && \
-    git submodule update --init --recursive
-WORKDIR /evmjit/build
-RUN cmake -DLLVM_DIR=/usr/lib/llvm-5.0/lib/cmake/llvm -DCMAKE_CXX_FLAGS="-march=x86-64 -mtune=generic" ..
-RUN cmake --build . --config RelWithDebInfo -- -j${MAKE_PARALLELISM}
+RUN autoconf && ./configure CXXFLAGS="--std=c++11 -march=x86-64 -mtune=generic" && make -j${MAKE_PARALLELISM} && make install && cd / && rm -rf /log4cplus
 
 WORKDIR /
 RUN git clone https://github.com/relic-toolkit/relic && \
     cd /relic && \
     git checkout 0998bfcb6b00aec85cf8d755d2a70d19ea3051fd
 WORKDIR /relic/build
-RUN cmake -DALLOC=AUTO -DWSIZE=64 -DWORD=64 -DRAND=UDEV -DSHLIB=ON -DSTLIB=ON -DSTBIN=OFF -DTIMER=HREAL -DCHECK=on -DVERBS=on -DARITH=x64-asm-254 -DFP_PRIME=254 -DFP_METHD="INTEG;INTEG;INTEG;MONTY;LOWER;SLIDE" -DCOMP="-O3 -funroll-loops -fomit-frame-pointer -finline-small-functions -march=x86-64 -mtune=generic" -DFP_PMERS=off -DFP_QNRES=on -DFPX_METHD="INTEG;INTEG;LAZYR" -DPP_METHD="LAZYR;OATEP" .. && make -j${MAKE_PARALLELISM} && make install
+RUN cmake -DALLOC=AUTO -DWSIZE=64 -DWORD=64 -DRAND=UDEV -DSHLIB=ON -DSTLIB=ON -DSTBIN=OFF -DTIMER=HREAL -DCHECK=on -DVERBS=on -DARITH=x64-asm-254 -DFP_PRIME=254 -DFP_METHD="INTEG;INTEG;INTEG;MONTY;LOWER;SLIDE" -DCOMP="-O3 -funroll-loops -fomit-frame-pointer -finline-small-functions -march=x86-64 -mtune=generic" -DFP_PMERS=off -DFP_QNRES=on -DFPX_METHD="INTEG;INTEG;LAZYR" -DPP_METHD="LAZYR;OATEP" .. && make -j${MAKE_PARALLELISM} && make install && cd / && rm -rf /relic
 
 WORKDIR /
 RUN wget https://github.com/facebook/rocksdb/archive/v5.7.3.tar.gz \
     && tar -xzf v5.7.3.tar.gz \
     && rm v5.7.3.tar.gz
 WORKDIR /rocksdb-5.7.3
-RUN PORTABLE=1 make -j${MAKE_PARALLELISM} shared_lib && PORTABLE=1 make install-shared
+RUN PORTABLE=1 make -j${MAKE_PARALLELISM} shared_lib && PORTABLE=1 make install-shared && \
+    cd / && rm -rf /rocksdb-5.7.3
 
 WORKDIR /
 RUN git clone https://github.com/bitcoin-core/secp256k1 && \
@@ -100,7 +114,8 @@ RUN git clone https://github.com/bitcoin-core/secp256k1 && \
     git checkout 1e6f1f5ad5e7f1e3ef79313ec02023902bf8175c
 WORKDIR /secp256k1
 RUN ./autogen.sh && ./configure --enable-module-recovery CFLAGS="-march=x86-64 -mtune=generic" CPPFLAGS="-march=x86-64 -mtune=generic"
-RUN make -j${MAKE_PARALLELISM} && make install
+RUN make -j${MAKE_PARALLELISM} && make install && cd / \
+    rm -rf /secp256k1
 
 WORKDIR /
 RUN git clone https://github.com/openssl/openssl.git && \
@@ -110,7 +125,7 @@ WORKDIR /openssl
 RUN ./config && \
     make -j${MAKE_PARALLELISM} && \
     make test && \
-    make install_sw
+    make install_sw && cd / && rm -rf openssl
 
 RUN cd / && \
     git clone https://github.com/protocolbuffers/protobuf.git && \
@@ -119,6 +134,18 @@ RUN cd / && \
     ./autogen.sh && \
     ./configure --prefix=/opt/protobuf && \
     make -j${MAKE_PARALLELISM} && \
-    make install
+    make install && \
+    cd / && rm -rf /protobuf
+
+WORKDIR /
+RUN git clone https://github.com/ethereum/evmone.git && \
+    cd /evmone && \
+    git checkout v0.2.0 && \
+    mkdir build && \
+    git submodule update --init --recursive
+WORKDIR /evmone/build
+RUN cmake -DBUILD_SHARED_LIBS=ON -DCMAKE_CXX_FLAGS="-march=x86-64 -mtune=generic" .. && \
+cmake --build . --config RelWithDebInfo -- -j${MAKE_PARALLELISM} && \
+make install
 
 ENV LD_LIBRARY_PATH /usr/local/lib

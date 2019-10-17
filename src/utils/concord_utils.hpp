@@ -6,7 +6,7 @@
 #ifndef UTILS_CONCORD_UTILS_HPP
 #define UTILS_CONCORD_UTILS_HPP
 
-#include <evmjit.h>
+#include <evmc/evmc.h>
 #include <log4cplus/loggingmacros.h>
 #include <boost/multiprecision/cpp_int.hpp>
 #include <chrono>

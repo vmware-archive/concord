@@ -6,8 +6,12 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 
 echo "Building docker images..."
 
-echo "Building concord-builder..."
-docker build --rm -f "${DIR}/dockerfiles/builder/Dockerfile" -t concord-builder:latest ${DIR}/..
+# Uncomment if you modify concord-builder and need to rebuild it
+# echo "Building concord-builder..."
+# docker build --rm -f "${DIR}/dockerfiles/builder/Dockerfile" -t vmwconcord/concord-builder:0.1 ${DIR}/..
+
+echo "Pulling concord-builder..."
+docker pull vmwconcord/concord-builder:0.1
 
 echo "Building concord-node..."
 docker build --rm -f "${DIR}/dockerfiles/node/Dockerfile" -t concord-node:latest ${DIR}/..

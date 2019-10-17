@@ -10,7 +10,7 @@
 
 #include <ostream>
 #include <vector>
-#include "evmjit.h"
+#include "evmc/evmc.h"
 
 namespace concord {
 namespace common {
