@@ -49,11 +49,11 @@ to be inserted in the migrations directory::
 .. highlight:: javascript
 Insert the following code and save the file::
 
-var HelloWorld = artifacts.require("./HelloWorld.sol");
+    var HelloWorld = artifacts.require("./HelloWorld.sol");
 
-module.exports = function(deployer) {
-  deployer.deploy(HelloWorld);
-};
+    module.exports = function(deployer) {
+    deployer.deploy(HelloWorld);
+    };
 
 .. highlight:: shell
 Now we can deploy the contract by running::
