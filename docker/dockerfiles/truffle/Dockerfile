@@ -1,6 +1,6 @@
 FROM node:12.10.0-stretch AS concord-truffle
 
-RUN RUN apt-get update && apt-get -y install vim nano && \
+RUN apt-get update && apt-get -y install vim nano && \
     rm -rf /var/lib/apt/lists/* && \
     npm install -g --unsafe-perm truffle@4.1.16 && \
     mkdir /truffle && \
