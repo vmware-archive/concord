@@ -30,4 +30,4 @@ For example,\n\
 truffle console --network ethrpc1\n"\
     > /etc/motd
 
-CMD [ "bash" ] 
+CMD [ "bash" ]
