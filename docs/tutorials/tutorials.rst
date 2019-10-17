@@ -61,6 +61,7 @@ Now we can deploy the contract by running::
   truffle migrate --network ethrpc1
 
 If the contract is sucessfully deployed, you should see output similar to::
+
     Using network 'ethrpc1'.
 
     Running migration: 1_initial_migration.js
@@ -72,3 +73,36 @@ If the contract is sucessfully deployed, you should see output similar to::
     Deploying HelloWorld...
     ... 0x62b20c6e38ae96da3ac2dc8f698f5a4c134e331d076b462820ae05ace08300ab
     HelloWorld: 0xf85e97d2420bf900ef42bb979e6f3fcdd0351da8
+
+Next, we'll want to interact with the contract. We can do that through the truffle
+console::
+
+  truffle console --network ethrpc1
+
+.. highlight:: javascript
+The truffle console accepts javascript as input.
+We can get acceess to the HelloWorld contract through the ``HelloWorld`` variable.
+The function is asynchronous, so we define the variable first, then retrieve an instance of the contract::
+
+   var app;
+   HelloWorld.deployed().then(function(instance) { app = instance; });
+
+Now you can acceess the contract through the ``app`` variable. If you type ``app.`` and press tab, tab completion
+should give you the list of functions you can call::
+
+   truffle(ethrpc1)> app.
+   app.__defineGetter__      app.__defineSetter__      app.__lookupGetter__      app.__lookupSetter__      app.__proto__
+   app.hasOwnProperty        app.isPrototypeOf         app.propertyIsEnumerable  app.toLocaleString        app.toString
+   app.valueOf
+
+   app.abi                   app.address               app.allEvents             app.constructor           app.contract
+   app.creator               app.message               app.send                  app.sendTransaction
+   app.transactionHash
+   
+Try calling the message function to view the message we entered in the app::
+
+   app.message.call()
+   > 'Hello, world'
+
+Congratulations, you just installed your first smart contract on Concord and made a simple call to one of its functions.
+
