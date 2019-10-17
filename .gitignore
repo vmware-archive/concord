@@ -8,4 +8,5 @@ build/*
 *.swp
 tags
 compile_commands.json
+concord.config
 *__pycache__
