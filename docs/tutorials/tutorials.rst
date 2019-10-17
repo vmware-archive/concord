@@ -27,6 +27,7 @@ needs to be inserted in the contracts directory::
 
 .. highlight:: solidity
 Insert the following code and save the file::
+
     pragma solidity ^0.4.0;
     contract HelloWorld {
         address public creator; 
@@ -39,31 +40,24 @@ Insert the following code and save the file::
         }
     }
 
+.. highlight:: shell
 Now, we'll need to create a javascript file to instruct truffle to deploy the contract. This file needs
 to be inserted in the migrations directory::
-.. highlight:: shell
+
   vi migrations/2_deploy_contracts.js
+
 .. highlight:: javascript
 Insert the following code and save the file::
-    pragma solidity ^0.4.0;
-    contract HelloWorld {
-        address public creator; 
-        string public message; 
 
-        // constructor
-        function HelloWorld() {
-            creator = msg.sender;
-            message = 'Hello, world';
-        }
-    }
 var HelloWorld = artifacts.require("./HelloWorld.sol");
 
 module.exports = function(deployer) {
   deployer.deploy(HelloWorld);
 };
 
-Now we can deploy the contract by running::
 .. highlight:: shell
+Now we can deploy the contract by running::
+
   truffle migrate --network ethrpc1
 
 If the contract is sucessfully deployed, you should see output similar to::
