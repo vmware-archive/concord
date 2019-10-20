@@ -46,7 +46,6 @@ RUN apt-get update \
     libsnappy1v5 \
     libzstd1 \
     libyaml-cpp0.5v5 \
-    llvm-5.0 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=concord-build /usr/local/lib/libcryptopp* /usr/local/lib/
