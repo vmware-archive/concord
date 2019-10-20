@@ -11,7 +11,7 @@
 	"context": "..",
 
 	// Update the 'dockerFile' property if you aren't using the standard 'Dockerfile' filename.
-	"dockerFile": "../docker/dockerfiles/builder/Dockerfile",
+	"dockerFile": "../docker/dockerfiles/development/Dockerfile",
 
 	
 	// The optional 'runArgs' property can be used to specify additional runtime arguments.
@@ -19,7 +19,7 @@
 		"--hostname", "concord-dev",
 		"-v", "${localWorkspaceFolder}/docker/resources/devdata/rocksdbdata1:/concord/rocksdbdata",
 		"-v", "${localWorkspaceFolder}/docker/resources/devdata/log1:/concord/log",
-		"-v", "${localWorkspaceFolder}/docker/resources/config-concord1:/concord/config-local",
+		"-v", "${localWorkspaceFolder}/docker/resources/config-concord1-develop:/concord/config-local",
 		"-v", "${localWorkspaceFolder}/docker/resources/config-public:/concord/config-public:ro",
 		"-v", "${localWorkspaceFolder}/docker/resources/tls_certs:/concord/tls_certs:ro",
 		"--expose", "3501",
