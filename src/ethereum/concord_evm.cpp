@@ -302,7 +302,7 @@ evmc_result EVM::execute(evmc_message& message, uint64_t timestamp,
 
   LOG4CPLUS_DEBUG(logger, "EVM execution, code size: " << code.size());
 
-  return evminst->execute(evminst, &concctx.evmctx, EVMC_BYZANTIUM, &message,
+  return evminst->execute(evminst, &concctx.evmctx, EVMC_MAX_REVISION, &message,
                           &code[0], code.size());
 }
 
