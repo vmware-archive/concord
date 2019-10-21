@@ -1,0 +1,16 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "Configure Concord",
+        "type": "shell",
+        "command": "cp /concord/config-local/concord_with_hostnames.config /concord/config-local/concord.config;/concord/config-public/find-docker-instances.sh /concord/config-local/concord.config concord-dev concord2 concord3 concord4",
+        "presentation": {
+          "reveal": "always",
+          "panel": "new"
+        }
+      }
+    ]
+  }
