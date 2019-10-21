@@ -28,13 +28,12 @@ needs to be inserted in the contracts directory::
 .. highlight:: solidity
 Insert the following code and save the file::
 
-    pragma solidity ^0.4.0;
+    pragma solidity ^0.5.8;
     contract HelloWorld {
         address public creator; 
         string public message; 
 
-        // constructor
-        function HelloWorld() {
+        constructor() public {
             creator = msg.sender;
             message = 'Hello, world';
         }
@@ -62,17 +61,75 @@ Now we can deploy the contract by running::
 
 If the contract is sucessfully deployed, you should see output similar to::
 
-    Using network 'ethrpc1'.
+   Compiling your contracts...
+   ===========================
+   > Compiling ./contracts/HelloWorld.sol
+   > Compiling ./contracts/Migrations.sol
+   > Artifacts written to /truffle/build/contracts
+   > Compiled successfully using:
+      - solc: 0.5.8+commit.23d335f2.Emscripten.clang
 
-    Running migration: 1_initial_migration.js
-    Deploying Migrations...
-    ... 0xa8dd74c8e388917e73898422703f0bd7baa6abdcf663ae2f945f8d0ca03dae1e
-    Migrations: 0x4c131316a325ffb02ec34c4bf2993b0cf6eea9eb
-    Saving artifacts...
-    Running migration: 2_deploy_contracts.js
-    Deploying HelloWorld...
-    ... 0x62b20c6e38ae96da3ac2dc8f698f5a4c134e331d076b462820ae05ace08300ab
-    HelloWorld: 0xf85e97d2420bf900ef42bb979e6f3fcdd0351da8
+
+
+   Starting migrations...
+   ======================
+   > Network name:    'ethrpc1'
+   > Network id:      5000
+   > Block gas limit: 0xf4240
+
+
+   1_initial_migration.js
+   ======================
+
+      Deploying 'Migrations'
+      ----------------------
+      > transaction hash:    0x7a62d178231bcee0167fd82330e96781bcf15e08c186a143de68bf0ce0a163c5
+      > Blocks: 0            Seconds: 0
+      > contract address:    0xc2b3150D03A3320b6De3F3a3dD0fDA086C384eB5
+      > block number:        1
+      > block timestamp:     1571682384
+      > account:             0x262C0D7AB5FfD4Ede2199f6EA793F819e1abB019
+      > balance:             0.000000000000012345
+      > gas used:            5449
+      > gas price:           0 gwei
+      > value sent:          0 ETH
+      > total cost:          0 ETH
+
+
+      > Saving migration to chain.
+      > Saving artifacts
+      -------------------------------------
+      > Total cost:                   0 ETH
+
+
+   2_deploy_contracts.js
+   =====================
+
+      Deploying 'HelloWorld'
+      ----------------------
+      > transaction hash:    0x73bc4a9e91b0da818cec84259c0faee8e46d26bdffa14d72ad51447c4e2870d6
+      > Blocks: 0            Seconds: 0
+      > contract address:    0x7373de9d9da5185316a8D493C0B04923326754b2
+      > block number:        3
+      > block timestamp:     1571682385
+      > account:             0x262C0D7AB5FfD4Ede2199f6EA793F819e1abB019
+      > balance:             0.000000000000012345
+      > gas used:            11019
+      > gas price:           0 gwei
+      > value sent:          0 ETH
+      > total cost:          0 ETH
+
+
+      > Saving migration to chain.
+      > Saving artifacts
+      -------------------------------------
+      > Total cost:                   0 ETH
+
+
+   Summary
+   =======
+   > Total deployments:   2
+   > Final cost:          0 ETH
 
 Next, we'll want to interact with the contract. We can do that through the truffle
 console::
@@ -82,10 +139,10 @@ console::
 .. highlight:: javascript
 The truffle console accepts javascript as input.
 We can get acceess to the HelloWorld contract through the ``HelloWorld`` variable.
-The function is asynchronous, so we define the variable first, then retrieve an instance of the contract::
+We want the deployed version of the contract, which we can retrieve using the asynchronous ``deployed()`` method.
+In javascript, we can use await to wait for an asynchronous function (which returns a ``Promise``) to complete::
 
-   var app;
-   HelloWorld.deployed().then(function(instance) { app = instance; });
+   var app = await HelloWorld.deployed();
 
 Now you can acceess the contract through the ``app`` variable. If you type ``app.`` and press tab, tab completion
 should give you the list of functions you can call::
@@ -99,9 +156,10 @@ should give you the list of functions you can call::
    app.creator               app.message               app.send                  app.sendTransaction
    app.transactionHash
    
-Try calling the message function to view the message we entered in the app::
+Try calling the message function to view the message we entered in the app.
+Remember, the function is asynchronous, so use the ``await`` keyword to resolve the ``Promise``::
 
-   app.message.call()
+   await app.message.call()
    > 'Hello, world'
 
 Congratulations, you just installed your first smart contract on Concord and made a simple call to one of its functions.
