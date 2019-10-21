@@ -47,11 +47,29 @@ Otherwise, the repository contains a docker image with Truffle pre-installed to 
 .. highlight:: javascript
 Now you can run a test transaction using Truffle. Type the following in the Truffle console:: 
  
-   let tx = web3.eth.sendTransaction({from: web3.eth.accounts[0], to: web3.eth.accounts[1], value: web3.toWei(1, "ether")});
-   
+   var accounts = await web3.eth.getAccounts()
+   await web3.eth.sendTransaction({from: accounts[0], to: accounts[1], value: web3.utils.toWei("0", "ether")})   
    web3.eth.getTransaction(tx)
 
-This creates a transaction which takes 1 Ether from test account 0 and sends it to test account 1, and prints
+You should get ouptut similar to::
+
+   {
+   blockHash: '0xb3bb6deed1446b30dcdaec50faf1b7fe40f8543bccb552743d4869cab5b50e63',
+   logsBloom: '0x00',
+   gasUsed: 10000000,
+   blockNumber: 6,
+   cumulativeGasUsed: 10000000,
+   contractAddress: null,
+   transactionIndex: 0,
+   from: '0x262c0d7ab5ffd4ede2199f6ea793f819e1abb019',
+   to: '0x5bb088f57365907b1840e45984cae028a82af934',
+   logs: [],
+   transactionHash: '0x9a6f2ae673da7454d66c74116183f680b0ea5d06e49f04bbcd312f0b362ac705',
+   status: true
+   }
+
+
+This creates a transaction which takes 0 Ether from test account 0 and sends it to test account 1, and prints
 out the information of the resulting transaction. Congratulations, you've just executed your first Ethereum
 transaction on Concord!
 
