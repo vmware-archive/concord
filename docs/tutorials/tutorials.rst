@@ -142,7 +142,7 @@ We can get acceess to the HelloWorld contract through the ``HelloWorld`` variabl
 We want the deployed version of the contract, which we can retrieve using the asynchronous ``deployed()`` method.
 In javascript, we can use await to wait for an asynchronous function (which returns a ``Promise``) to complete::
 
-   var app = await HelloWorld.deployed();
+   var app = await HelloWorld.deployed()
 
 Now you can acceess the contract through the ``app`` variable. If you type ``app.`` and press tab, tab completion
 should give you the list of functions you can call::
