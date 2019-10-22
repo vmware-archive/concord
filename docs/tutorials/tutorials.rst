@@ -18,7 +18,7 @@ Start by running the simple four node Concord instance, ``simple4.yml`` from the
 
 Next, start the truffle image::
 
-   docker run -it concord-truffle:latest
+   docker exec -it compose_concord-truffle_1 bash
 
 We'll now create a simple hello world contract. We'll use ``vim`` to create the contract, which
 needs to be inserted in the contracts directory::
