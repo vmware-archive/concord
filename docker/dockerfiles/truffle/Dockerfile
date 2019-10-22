@@ -7,8 +7,6 @@ RUN apt-get update && apt-get -y install vim nano && \
     cd /truffle && \
     truffle init
 
-COPY docker/dockerfiles/truffle/truffle-config.js /truffle/truffle-config.js
-
 WORKDIR /truffle
 
 RUN echo '[ ! -z "$TERM" -a -r /etc/motd ] && cat /etc/issue && cat /etc/motd' \
