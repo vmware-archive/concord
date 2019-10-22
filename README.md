@@ -16,10 +16,9 @@ docker/build_images.sh
 docker-compose -f docker/compose/simple4.yml up
 
 # Connect to Concord with Truffle (in a different window)
-docker run -it concord-truffle:latest
+# Or use your own local copy of Truffle and connect to localhost:8545
+docker exec -it compose_concord-truffle_1 bash
 truffle console --network ethrpc1
-
-# Or use your own local copy of Truffle (4.x) and connect to localhost:8545
 ```
 
 Check out our [documentation](https://concord.readthedocs.io/en/latest/) for 

@@ -30,9 +30,6 @@ You should see some messages go by, indicating the cluster is starting up. Once 
 is up, the next setup is to interact with it. Since this cluster comes with the ``ethRPC`` bridge,
 we can communciate with it using standard Ethereum tooling.
 
-.. attention:: The ``ethRPC`` bridge currently only supports Truffle 4.x. Connecting with a newer version
-               of Truffle will result in connection errors.
-
 `Truffle <https://www.npmjs.com/package/truffle>`_ is a popular tool for developing and debugging
 Ethereum smart contracts. If you're familar with Truffle (note that we only support Truffle 4.x at the moment)
 and have used it before, you can connect to the blockchain instance on your local machine 
@@ -41,15 +38,14 @@ at http://localhost:8545, which will connect to the first Concord node in your s
 Otherwise, the repository contains a docker image with Truffle pre-installed to deploy to the simple
 4 node Concord instance you just created. To start the image and connect to the first Concord node, run:: 
  
-   docker run -it concord-truffle:latest
+   docker exec -it compose_concord-truffle_1 bash
    truffle console  --network ethrpc1
 
 .. highlight:: javascript
 Now you can run a test transaction using Truffle. Type the following in the Truffle console:: 
  
    var accounts = await web3.eth.getAccounts()
-   await web3.eth.sendTransaction({from: accounts[0], to: accounts[1], value: web3.utils.toWei("0", "ether")})   
-   web3.eth.getTransaction(tx)
+   await web3.eth.sendTransaction({from: accounts[0], to: accounts[1], value: web3.utils.toWei("0", "ether")})
 
 You should get ouptut similar to::
 

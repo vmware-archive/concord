@@ -8,7 +8,7 @@ Developer
           link on the top right.
 
 Concord is developed inside of Docker containers to simplify dependency management, and the easiest way to get 
-a development environment setup for Concord is by using `Visual Studio Code <https://code.visualstudio.com/>`, 
+a development environment setup for Concord is by using `Visual Studio Code <https://code.visualstudio.com/>`_, 
 which includes Dev Container features, making it easy to deploy and debug from within a container.
 
 Concord has a ``devcontainer.json`` file included in the repository which will correctly setup the container
