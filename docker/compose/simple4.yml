@@ -1,13 +1,13 @@
 version: '3'
 services:
   concord-truffle:
-    image: concord-truffle:latest
+    image: efblock/concord-truffle:latest
     tty: true
     volumes:
       - ../resources/truffle:/truffle
 
   concord1:
-    image: concord-node:latest
+    image: efblock/concord-node:latest
     ports:
       - 5458:5458
     expose:
@@ -24,7 +24,7 @@ services:
       - ../resources/tls_certs:/concord/tls_certs:ro
 
   ethrpc1:
-    image: concord-ethrpc:latest
+    image: efblock/concord-ethrpc:latest
     ports:
       - 8545:8545
     volumes:
@@ -36,7 +36,7 @@ services:
       - --ConcordAuthorities=concord1:5458
 
   concord2:
-    image: concord-node:latest
+    image: efblock/concord-node:latest
     ports:
       - 5459:5458
     expose:
@@ -53,7 +53,7 @@ services:
       - ../resources/tls_certs:/concord/tls_certs:ro
 
   ethrpc2:
-    image: concord-ethrpc:latest
+    image: efblock/concord-ethrpc:latest
     ports:
       - 8546:8545
     volumes:
@@ -65,7 +65,7 @@ services:
       - --ConcordAuthorities=concord2:5458
 
   concord3:
-    image: concord-node:latest
+    image: efblock/concord-node:latest
     ports:
       - 5460:5458
     expose:
@@ -82,7 +82,7 @@ services:
       - ../resources/tls_certs:/concord/tls_certs:ro
 
   ethrpc3:
-    image: concord-ethrpc:latest
+    image: efblock/concord-ethrpc:latest
     ports:
       - 8547:8545
     volumes:
@@ -94,7 +94,7 @@ services:
       - --ConcordAuthorities=concord3:5458
 
   concord4:
-    image: concord-node:latest
+    image: efblock/concord-node:latest
     ports:
       - 5461:5458
     expose:
@@ -111,7 +111,7 @@ services:
       - ../resources/tls_certs:/concord/tls_certs:ro
 
   ethrpc4:
-    image: concord-ethrpc:latest
+    image: efblock/concord-ethrpc:latest
     ports:
       - 8548:8545
     volumes:
