@@ -5,24 +5,24 @@ Getting Started
 ===============
 
 The preferred way to deploy and develop on Concord is through the use of `Docker <https://www.docker.com/>`_,
-which should be all you need to get a deployment of Concord running locally. 
+which should be all you need to get a deployment of Concord running locally.
 
-Once you have Docker installed, checkout the Concord repository:: 
+Once you have Docker installed, checkout the Concord repository::
 
    git clone https://github.com/vmware/concord.git
 
-After that, from the Concord directory, run the build script for the Docker images:: 
+After that, from the Concord directory, run the build script for the Docker images::
 
    cd concord
-   docker/build.images.sh
+   docker/build_images.sh
 
 You're now ready to launch Concord. Locally, ``docker-compose`` makes it very easy to setup a
-Concord cluster. 
+Concord cluster.
 
 .. attention:: The following instructions setup Concord to use insecure (http) communication
                for simplicity and should not be used in production.
 
-To launch a simple 4-node Concord cluster, launch the ``simple4.yml`` file:: 
+To launch a simple 4-node Concord cluster, launch the ``simple4.yml`` file::
 
    docker-compose -f docker/compose/simple4.yml up
 
@@ -32,17 +32,17 @@ we can communciate with it using standard Ethereum tooling.
 
 `Truffle <https://www.npmjs.com/package/truffle>`_ is a popular tool for developing and debugging
 Ethereum smart contracts. If you're familar with Truffle (note that we only support Truffle 4.x at the moment)
-and have used it before, you can connect to the blockchain instance on your local machine 
-at http://localhost:8545, which will connect to the first Concord node in your system.  
+and have used it before, you can connect to the blockchain instance on your local machine
+at http://localhost:8545, which will connect to the first Concord node in your system.
 
 Otherwise, the repository contains a docker image with Truffle pre-installed to deploy to the simple
-4 node Concord instance you just created. To start the image and connect to the first Concord node, run:: 
- 
+4 node Concord instance you just created. To start the image and connect to the first Concord node, run::
+
    docker exec -it compose_concord-truffle_1 bash
    truffle console  --network ethrpc1
 
 .. highlight:: javascript
-Now you can run a test transaction using Truffle. Type the following in the Truffle console:: 
+Now you can run a test transaction using Truffle. Type the following in the Truffle console::
  
    var accounts = await web3.eth.getAccounts()
    await web3.eth.sendTransaction({from: accounts[0], to: accounts[1], value: web3.utils.toWei("0", "ether")})
@@ -70,7 +70,7 @@ out the information of the resulting transaction. Congratulations, you've just e
 transaction on Concord!
 
 From here, you can look into how to :ref:`deploy <deployment>` Concord, read the :ref:`tutorials <tutorials>` on how
-to install and interact with smart contracts on Concord, or learn how to :ref:`develop <develop>` support for your 
+to install and interact with smart contracts on Concord, or learn how to :ref:`develop <develop>` support for your
 own custom API on Concord.
 
 
