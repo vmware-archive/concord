@@ -74,7 +74,24 @@ public class Constants {
     //Temporary workaround for eth_accounts.  Comma-delimited list of users from our genesis.json
     public static final String USERS = "0x262c0d7ab5ffd4ede2199f6ea793f819e1abb019,"
                                        + "0x5bb088f57365907b1840e45984cae028a82af934,"
-                                       + "0x0000a12b3f3d6c9b0d3f126a83ec2dd3dad15f39";
+                                       + "0x0000a12b3f3d6c9b0d3f126a83ec2dd3dad15f39,"
+                                       + "0x5101f077F4C2FD96a3bFC33bC37C25DFB7Bf4E99,"
+                                       + "0x318cc89B29910D61961fDb4d308e4D2203d447d0,"
+                                       + "0x67842Ce7404c59d7F0F36ae34bE5ca87367E9dF6,"
+                                       + "0xe5577469562c5fDF2fF1117c8b888C3CFA043F73,"
+                                       + "0x4d8A8dCd92d27730705efDa917e1dAf31Bc30DE2,"
+                                       + "0x9717a1E194601885bFE61768321D7e98917ca9c4,"
+                                       + "0x5089d747B810A13979e6Ef227e9eb1E66F7e4DA0,"
+                                       + "0xC4af22ad4D1467Cd60Dfe3145E00F23a032EA185,"
+                                       + "0xD3bbEc12DefDca0b96056a7fF5Cc00D76AfB6F6a,"
+                                       + "0x4AffeC47CB121aF0e9fd5915895996e3f8Ad3A4A,"
+                                       + "0x0eDDA8153B03c40fA3A40cC07e28089DD0435464,"
+                                       + "0x06e20BB182FC80AA16903a565CC4f93e2b47D423,"
+                                       + "0xfD444ECB2c868C3A851cE6389c24dbCB4Eb665fd,",
+                                       + "0xafCE1Bf29cE631B0AeE33308Ff6A8b37586b3034,"
+                                       + "0x4461d0d1e80073b3490398af1252F0B925e42A8F,"
+                                       + "0xe1c7a0aDE49A2B7D8788bfFb1438F722A0bE925F,"
+                                       + "0xEe7fE9b0fEA0242032b57b9c0A34E8db15b67422";
     public static final String NEWFILTER_NAME = "eth_newFilter";
     public static final String NEWBLOCKFILTER_NAME = "eth_newBlockFilter";
     public static final String NEWPENDINGTRANSACTIONFILTER_NAME = "eth_newPendingTransactionFilter";
