@@ -1,7 +1,8 @@
 // Copyright (c) 2018-2019 VMware, Inc. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-//
-// Test concord::time::TimeContract and related classes.
+/**
+ * Test concord::time::TimeContract and related classes.
+ */
 
 #include "time/time_contract.hpp"
 #include "blockchain/db_adapter.h"
@@ -18,16 +19,21 @@
 #include <log4cplus/hierarchy.h>
 #include <log4cplus/loggingmacros.h>
 
+#include <string>
+#include <utility>
+#include <vector>
+
 using namespace std;
 
 using com::vmware::concord::kvb::Time;
 using concord::config::ConcordConfiguration;
 using concord::config::ConfigurationPath;
 using concord::storage::IDBClient;
+using concord::storage::blockchain::DBKeyComparator;
+using concord::storage::blockchain::DBKeyManipulator;
 using concord::storage::blockchain::IBlocksAppender;
 using concord::storage::blockchain::ILocalKeyValueStorageReadOnly;
 using concord::storage::blockchain::ILocalKeyValueStorageReadOnlyIterator;
-using concord::storage::blockchain::KeyManipulator;
 using concord::storage::memorydb::Client;
 using concord::storage::memorydb::KeyComparator;
 using concord::time::ClientProxyIDTimeVerifier;
@@ -54,7 +60,7 @@ namespace {
 class TestStorage : public ILocalKeyValueStorageReadOnly,
                     public IBlocksAppender {
  private:
-  KeyComparator comp = KeyComparator(new KeyManipulator());
+  KeyComparator comp = KeyComparator(new DBKeyComparator());
   Client db_ = Client(comp);
 
  public:
@@ -66,10 +72,7 @@ class TestStorage : public ILocalKeyValueStorageReadOnly,
   Status get(BlockId readVersion, const Sliver& key, Sliver& outValue,
              BlockId& outBlock) const override {
     outBlock = 0;
-    // KeyManipulator::genDataDbKey is non-const, but this function must be
-    // const. Work around by creating a local manipulator.
-    KeyManipulator internalManip;
-    return db_.get(internalManip.genDataDbKey(key, 0), outValue);
+    return db_.get(DBKeyManipulator::genDataDbKey(key, 0), outValue);
   }
 
   BlockId getLastBlock() const override { return 0; }
@@ -106,8 +109,8 @@ class TestStorage : public ILocalKeyValueStorageReadOnly,
   Status addBlock(const SetOfKeyValuePairs& updates,
                   BlockId& outBlockId) override {
     for (auto u : updates) {
-      KeyManipulator internalManip;
-      Status status = db_.put(internalManip.genDataDbKey(u.first, 0), u.second);
+      Status status =
+          db_.put(DBKeyManipulator::genDataDbKey(u.first, 0), u.second);
       if (!status.isOK()) {
         return status;
       }
@@ -717,6 +720,39 @@ TEST(time_contract_test, time_verification_enforcement) {
       << "Time Contract with client proxy ID-based time verification enabled "
          "fails to reject time updates from client proxies that do not match "
          "the time source.";
+}
+
+// Verify summarized time handling is correct.
+TEST(time_contract_test, summarized_time) {
+  TestStorage database;
+  const ConcordConfiguration config =
+      TestConfiguration({"A", "B", "C", "D", "E"}, "none");
+  TimeContract tc(database, config);
+
+  const std::vector samples = {
+      std::make_pair("A"s, TimeUtil::SecondsToTimestamp(1)),
+      std::make_pair("B"s, TimeUtil::SecondsToTimestamp(2)),
+      std::make_pair("C"s, TimeUtil::SecondsToTimestamp(3)),
+      std::make_pair("D"s, TimeUtil::SecondsToTimestamp(4)),
+      std::make_pair("E"s, TimeUtil::SecondsToTimestamp(5))};
+
+  for (auto i = 0u; i < samples.size(); ++i) {
+    const auto& [source, timestamp] = samples[i];
+    tc.Update(source, GetSomeClientIDFromNode(i), timestamp);
+  }
+
+  const auto current_time = tc.GetTime();
+
+  const SetOfKeyValuePairs updates({tc.SerializeSummarizedTime()});
+  BlockId block_id;
+  const auto result = database.addBlock(updates, block_id);
+  ASSERT_TRUE(result.isOK());
+
+  const auto summarized_time0 = tc.GetSummarizedTimeAtBlock(block_id);
+  ASSERT_EQ(current_time, summarized_time0);
+
+  const auto summarized_time1 = tc.GetSummarizedTimeAtBlock(block_id + 1);
+  ASSERT_EQ(current_time, summarized_time1);
 }
 
 }  // end namespace

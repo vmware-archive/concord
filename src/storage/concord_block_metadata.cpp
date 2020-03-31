@@ -4,16 +4,15 @@
 // Wrapper used by concord::consensus::ConcordCommandsHandler to store BFT
 // metadata (sequence number).
 
-#include "concord_metadata_storage.h"
-#include <log4cplus/loggingmacros.h>
+#include "concord_block_metadata.h"
+
 #include "kv_types.hpp"
 
 namespace concord {
 namespace storage {
 
-Sliver ConcordMetadataStorage::SerializeBlockMetadata(
-    uint64_t bft_sequence_num) {
-  block_metadata_.Clear();
+Sliver ConcordBlockMetadata::serialize(uint64_t bft_sequence_num) const {
+  com::vmware::concord::kvb::BlockMetadata block_metadata_;
   block_metadata_.set_version(kBlockMetadataVersion);
   block_metadata_.set_bft_sequence_num(bft_sequence_num);
 
@@ -22,14 +21,12 @@ Sliver ConcordMetadataStorage::SerializeBlockMetadata(
   // pointer to the buffer we return, and they would all see the modification we
   // would make later.
   size_t serialized_size = block_metadata_.ByteSize();
-  uint8_t* raw_buffer = new uint8_t[serialized_size];
-  Sliver block_metadata_buffer(raw_buffer, serialized_size);
-  block_metadata_.SerializeToArray(block_metadata_buffer.data(),
-                                   block_metadata_buffer.length());
-  return block_metadata_buffer;
+  char* raw_buffer = new char[serialized_size];
+  block_metadata_.SerializeToArray(raw_buffer, serialized_size);
+  return Sliver(raw_buffer, serialized_size);
 }
 
-uint64_t ConcordMetadataStorage::GetBlockMetadata(Sliver& key) {
+uint64_t ConcordBlockMetadata::getSequenceNum(const Sliver& key) const {
   Sliver outValue;
   Status status = storage_.get(key, outValue);
   uint64_t sequenceNum = 0;
@@ -52,8 +49,7 @@ uint64_t ConcordMetadataStorage::GetBlockMetadata(Sliver& key) {
                                 << status
                                 << ", outValue.length = " << outValue.length());
   }
-  LOG4CPLUS_DEBUG(logger_,
-                  "key = " << key << ", sequenceNum = " << sequenceNum);
+  LOG_DEBUG(logger_, "key = " << key << ", sequenceNum = " << sequenceNum);
   return sequenceNum;
 }
 

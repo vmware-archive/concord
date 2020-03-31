@@ -37,7 +37,7 @@ target_link_libraries(SignTests
   pthread
   log4cplus
   secp256k1
-  ${Cryptopp_LIBRARIES})
+  ${CRYPTOPP_LIBRARIES})
 
 add_executable(ConfigTests
   config_test.cpp
@@ -55,25 +55,28 @@ target_link_libraries(ConfigTests
   $<TARGET_OBJECTS:logging_dev>)
 
 add_executable(ReplicaStateSyncTests
-  ../src/common/concord_log.cpp
-  ../src/common/concord_types.cpp
-  ../src/consensus/replica_state_sync_imp.cpp
-  ../src/storage/concord_metadata_storage.cpp
-  ../src/utils/concord_eth_hash.cpp
-  ../src/utils/rlp.cpp
-  replicaStateSync_test.cpp)
+        ../src/common/concord_log.cpp
+        ../src/common/concord_types.cpp
+        ../src/config/configuration_manager.cpp
+        ../src/storage/concord_block_metadata.cpp
+        ../src/utils/concord_eth_hash.cpp
+        ../src/utils/rlp.cpp
+        ../src/config/configuration_manager.cpp
+        replicaStateSync_test.cpp
+        $<TARGET_OBJECTS:logging_dev>)
 
 target_link_libraries(ReplicaStateSyncTests
-  ${GTEST_LIBRARIES}
-  log4cplus
-  gtest
-  gtest_main
-  proto
-  ${EVM_LIBRARIES}
-  LLVMSupport
-  concord_utils
-  concord_storage)
-
+        ${Boost_LIBRARIES}
+        ${GTEST_LIBRARY}
+        ${yaml-cpp_LIBRARIES}
+        log4cplus
+        proto
+        ${EVM_LIBRARIES}
+        LLVMSupport
+        concord_utils
+        concord_storage
+        kvbc)
+        
 add_executable(TimeContractTests
   time_contract_test.cpp
   ../src/config/configuration_manager.cpp)

@@ -19,16 +19,18 @@ using namespace boost::asio;
 namespace concord {
 namespace api {
 
-ApiAcceptor::ApiAcceptor(io_service &io_service, tcp::endpoint endpoint,
-                         KVBClientPool &clientPool, StatusAggregator &sag,
-                         uint64_t gasLimit, uint64_t chainID, bool ethEnabled)
+ApiAcceptor::ApiAcceptor(
+    io_service &io_service, tcp::endpoint endpoint, KVBClientPool &clientPool,
+    StatusAggregator &sag, uint64_t gasLimit, uint64_t chainID, bool ethEnabled,
+    const concord::config::ConcordConfiguration &nodeConfig)
     : acceptor_(io_service, endpoint),
       clientPool_(clientPool),
       logger_(log4cplus::Logger::getInstance("com.vmware.concord.ApiAcceptor")),
       sag_(sag),
       gasLimit_(gasLimit),
       chainID_(chainID),
-      ethEnabled_(ethEnabled) {
+      ethEnabled_(ethEnabled),
+      nodeConfig_(nodeConfig) {
   // set SO_REUSEADDR option on this socket so that if listener thread fails
   // we can still bind again to this socket
   acceptor_.set_option(ip::tcp::acceptor::reuse_address(true));
@@ -40,7 +42,7 @@ void ApiAcceptor::start_accept() {
 
   ApiConnection::pointer new_connection = ApiConnection::create(
       acceptor_.get_io_service(), connManager_, clientPool_, sag_, gasLimit_,
-      chainID_, ethEnabled_);
+      chainID_, ethEnabled_, nodeConfig_);
 
   acceptor_.async_accept(
       new_connection->socket(),

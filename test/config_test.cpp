@@ -1,11 +1,13 @@
 // Copyright (c) 2018-2019 VMware, Inc. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
+//
 // Unit tests the configuration management classes defined in
 // src/configuration_manager.hpp.
 
+#include <nlohmann/json.hpp>
+
 #include "config/configuration_manager.hpp"
 #include "gtest/gtest.h"
-#include "utils/json.hpp"
 
 using std::endl;
 using std::ostringstream;

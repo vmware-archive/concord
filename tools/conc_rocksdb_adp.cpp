@@ -18,7 +18,7 @@
 
 using namespace std;
 using concord::storage::blockchain::DBAdapter;
-using concord::storage::blockchain::KeyManipulator;
+using concord::storage::blockchain::DBKeyComparator;
 using concord::storage::rocksdb::Client;
 using concord::storage::rocksdb::KeyComparator;
 using concordUtils::BlockId;
@@ -56,17 +56,18 @@ std::vector<Sliver> get_data(BlockId from, BlockId to,
   return result;
 }
 
-void compute_digest(uint8_t *data, size_t length, uint8_t *output,
+void compute_digest(const char *data, size_t length, char *output,
                     size_t outputLenght, size_t &actualOutputLength) {
   assert(output);
   assert(outputLenght >= CryptoPP::Keccak_256::DIGESTSIZE);
   CryptoPP::Keccak_256 keccak;
   actualOutputLength = CryptoPP::Keccak_256::DIGESTSIZE;
-  keccak.CalculateDigest(output, data, length);
+  keccak.CalculateDigest((CryptoPP::byte *)output, (const CryptoPP::byte *)data,
+                         length);
 }
 
 void print_result(vector<Sliver> &results,
-                  void (*transform)(uint8_t *, size_t, uint8_t *, size_t,
+                  void (*transform)(const char *, size_t, char *, size_t,
                                     size_t &) = nullptr) {
   if (results.size() == 0) {
     cout << "Not found" << endl << "Total size :0" << endl;
@@ -78,8 +79,8 @@ void print_result(vector<Sliver> &results,
            << "------- start, data size " << data.length() << "---------";
       cout << endl;
 
-      uint8_t printData[1024];
-      uint8_t *printPtr = nullptr;
+      char printData[1024];
+      const char *printPtr;
       size_t printLength = 0;
       if (transform) {
         printPtr = printData;
@@ -142,10 +143,10 @@ int main(int argc, char **argv) {
     readOnly = true;
   }
 
-  std::unique_ptr<KeyManipulator> manip(new KeyManipulator());
+  std::unique_ptr<DBKeyComparator> manip(new DBKeyComparator());
   std::unique_ptr<KeyComparator> comp(new KeyComparator(manip.get()));
-  std::unique_ptr<Client> client(new Client(path, comp.get()));
-  std::unique_ptr<DBAdapter> adapter(new DBAdapter(client.get(), readOnly));
+  std::shared_ptr<Client> client(new Client(path, comp.get()));
+  std::unique_ptr<DBAdapter> adapter(new DBAdapter(client, readOnly));
 
   switch (opTypes[op]) {
     case OpType::GetBlockDigest: {

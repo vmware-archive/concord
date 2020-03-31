@@ -13,7 +13,9 @@
 
 #include "common/status_aggregator.hpp"
 #include "concord.pb.h"
+#include "config/configuration_manager.hpp"
 #include "consensus/kvb_client.hpp"
+#include "pruning/rsa_pruning_signer.hpp"
 
 namespace concord {
 namespace api {
@@ -29,11 +31,12 @@ class ApiConnection : public boost::enable_shared_from_this<ApiConnection> {
 
   typedef boost::shared_ptr<ApiConnection> pointer;
 
-  static pointer create(boost::asio::io_service &io_service,
-                        ConnectionManager &connManager,
-                        concord::consensus::KVBClientPool &clientPool,
-                        concord::common::StatusAggregator &sag,
-                        uint64_t gasLimit, uint64_t chainID, bool ethEnabled);
+  static pointer create(
+      boost::asio::io_service &io_service, ConnectionManager &connManager,
+      concord::consensus::KVBClientPool &clientPool,
+      concord::common::StatusAggregator &sag, uint64_t gasLimit,
+      uint64_t chainID, bool ethEnabled,
+      const concord::config::ConcordConfiguration &nodeConfig);
 
   boost::asio::ip::tcp::socket &socket();
 
@@ -65,6 +68,10 @@ class ApiConnection : public boost::enable_shared_from_this<ApiConnection> {
 
   void handle_time_request();
 
+  void handle_latest_prunable_block_request();
+
+  void handle_prune_request();
+
   void handle_test_request();
 
   bool send_request(com::vmware::concord::ConcordRequest &req, bool isReadOnly,
@@ -88,7 +95,8 @@ class ApiConnection : public boost::enable_shared_from_this<ApiConnection> {
                 ConnectionManager &connManager,
                 concord::consensus::KVBClientPool &clientPool,
                 concord::common::StatusAggregator &sag, uint64_t gasLimit,
-                uint64_t chainID, bool ethEnabled);
+                uint64_t chainID, bool ethEnabled,
+                const concord::config::ConcordConfiguration &nodeConfig);
 
   uint16_t get_message_length(const char *buffer);
 
@@ -123,6 +131,9 @@ class ApiConnection : public boost::enable_shared_from_this<ApiConnection> {
    */
   com::vmware::concord::ConcordResponse concordResponse_;
 
+  /* The active tracing span. */
+  std::unique_ptr<opentracing::Span> span_;
+
   /* Logger. */
   log4cplus::Logger logger_;
 
@@ -147,6 +158,14 @@ class ApiConnection : public boost::enable_shared_from_this<ApiConnection> {
   const uint64_t gasLimit_;
   const uint64_t chainID_;
   const bool ethEnabled_;
+
+  /* This signer is used to sign unsigned PruneRequest messages received over
+   * the API so that the pruning state machine can process them. The signer uses
+   * the private key of the replica that is running in the same node.
+   * Additionally, a client_proxy principal_id from the same node is set as a
+   * sender. */
+  concord::pruning::RSAPruningSigner pruningSigner_;
+  uint64_t pruneRequestSenderId_{0};
 };
 
 }  // namespace api

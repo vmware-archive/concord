@@ -10,7 +10,7 @@ set(concord_time_sources
 
 add_library(concord_time ${concord_time_sources})
 
-target_link_libraries(concord_time PUBLIC concord_consensus proto concordbft_storage util)
+target_link_libraries(concord_time PUBLIC concord_consensus proto concordbft_storage kvbc util)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/..)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/..)
 
@@ -19,3 +19,4 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR}/..)
 # bftengine/src/bftengine/Crypto.hpp in Concord-BFT.
 target_link_libraries(concord_time PUBLIC corebft)
 target_include_directories(concord_time PUBLIC ${bftengine_SOURCE_DIR})
+

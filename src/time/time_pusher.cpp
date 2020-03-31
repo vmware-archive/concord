@@ -5,6 +5,7 @@
 
 #include <google/protobuf/util/time_util.h>
 #include <log4cplus/loggingmacros.h>
+#include <opentracing/tracer.h>
 #include <chrono>
 #include <mutex>
 #include <thread>
@@ -55,7 +56,7 @@ TimePusher::TimePusher(const concord::config::ConcordConfiguration &config,
     } else if ((config.getValue<string>("time_verification") !=
                 "bft-client-proxy-id") &&
                (config.getValue<string>("time_verification") != "none")) {
-      throw invalid_argument(
+      throw std::invalid_argument(
           "Cannot construct TimePusher: Unrecognized selection for "
           "time_verification in configuration: \"" +
           config.getValue<string>("time_verification") + "\".");
@@ -110,7 +111,7 @@ void TimePusher::AddTimeToCommand(ConcordRequest &command, Timestamp time) {
     Timestamp *t = new Timestamp(time);
     ts->set_allocated_time(t);
     if (signer_) {
-      vector<uint8_t> signature = signer_->Sign(time);
+      std::vector<uint8_t> signature = signer_->Sign(time);
       ts->set_signature(signature.data(), signature.size());
     }
   }
@@ -180,6 +181,7 @@ void TimePusher::ThreadFunction() {
     std::this_thread::sleep_for(
         std::chrono::milliseconds(TimeUtil::DurationToMilliseconds(period_)));
 
+    auto span = opentracing::Tracer::Global()->StartSpan("time_update");
     Timestamp time = ReadTime();
     if (time < lastPublishTime_ + period_) {
       // Time was published by a transaction recently - no need to publish again
@@ -189,7 +191,10 @@ void TimePusher::ThreadFunction() {
 
     try {
       AddTimeToCommand(req, time);
-      clientPool_->send_request_sync(req, false /* not read-only */, resp);
+      clientPool_->send_request_sync(
+          req, false /* not read-only */,
+          std::chrono::milliseconds(TimeUtil::DurationToMilliseconds(period_)),
+          *(span.get()), resp);
       req.Clear();
       resp.Clear();
     } catch (...) {

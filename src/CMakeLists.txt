@@ -17,6 +17,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 add_subdirectory("common")
 add_subdirectory("consensus")
 add_subdirectory("ethereum")
+add_subdirectory("pruning")
 add_subdirectory("storage")
 add_subdirectory("time")
 add_subdirectory("utils")
@@ -38,11 +39,15 @@ target_link_libraries(concord
   ${Boost_LIBRARIES}
   log4cplus
   ${yaml-cpp_LIBRARIES}
+  jaegertracing
+  opentracing
+  thrift
   concord_common
   concord_consensus
   concord_ethereum
   concord_storage
   concord_time
   concord_utils
+  gRPC::grpc++_reflection
   $<TARGET_OBJECTS:logging_dev>
 )

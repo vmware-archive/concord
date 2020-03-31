@@ -7,68 +7,99 @@
 #include "hash_defs.h"
 #include "time/time_contract.hpp"
 
+#include <opentracing/tracer.h>
+#include <prometheus/counter.h>
 #include <vector>
 
 using com::vmware::concord::ErrorResponse;
 using com::vmware::concord::TimeRequest;
 using com::vmware::concord::TimeResponse;
 using com::vmware::concord::TimeSample;
+using concordUtils::BlockId;
+using concordUtils::SetOfKeyValuePairs;
 using concordUtils::Sliver;
 
 using google::protobuf::Timestamp;
-using std::chrono::steady_clock;
 
 namespace concord {
 namespace consensus {
 
 ConcordCommandsHandler::ConcordCommandsHandler(
     const concord::config::ConcordConfiguration &config,
+    const concord::config::ConcordConfiguration &node_config,
     const concord::storage::blockchain::ILocalKeyValueStorageReadOnly &storage,
-    concord::storage::blockchain::IBlocksAppender &appender)
+    concord::storage::blockchain::IBlocksAppender &appender,
+    std::shared_ptr<concord::utils::IPrometheusRegistry> prometheus_registry)
     : logger_(log4cplus::Logger::getInstance(
           "concord.consensus.ConcordCommandsHandler")),
       metadata_storage_(storage),
       storage_(storage),
-      timing_enabled_(config.getValue<bool>("replica_timing_enabled")),
-      metrics_{concordMetrics::Component(
-          "concord_commands_handler",
-          std::make_shared<concordMetrics::Aggregator>())},
-      timing_parse_("parse", timing_enabled_, metrics_),
-      timing_time_update_("time_update", timing_enabled_, metrics_),
-      timing_time_response_("time_response", timing_enabled_, metrics_),
-      timing_execute_("execute", timing_enabled_, metrics_),
-      timing_serialize_("serialize", timing_enabled_, metrics_),
+      command_handler_counters_{prometheus_registry->createCounterFamily(
+          "concord_command_handler_operation_counters_total",
+          "counts how many operations the command handler has done", {})},
+      written_blocks_{prometheus_registry->createCounter(
+          command_handler_counters_, {{"layer", "ConcordCommandsHandler"},
+                                      {"operation", "written_blocks"}})},
       appender_(appender) {
   if (concord::time::IsTimeServiceEnabled(config)) {
     time_ = std::unique_ptr<concord::time::TimeContract>(
         new concord::time::TimeContract(storage_, config));
   }
-  if (timing_enabled_) {
-    timing_log_period_ = std::chrono::seconds(
-        config.getValue<uint32_t>("replica_timing_log_period_sec"));
-    timing_log_last_ = steady_clock::now();
-  }
+
+  pruning_sm_ = std::make_unique<concord::pruning::KVBPruningSM>(
+      storage, config, node_config, time_.get());
 }
 
 int ConcordCommandsHandler::execute(uint16_t client_id, uint64_t sequence_num,
-                                    bool read_only, uint32_t request_size,
+                                    uint8_t flags, uint32_t request_size,
                                     const char *request_buffer,
                                     uint32_t max_response_size,
                                     char *response_buffer,
                                     uint32_t &out_response_size) {
   executing_bft_sequence_num_ = sequence_num;
 
+  bool read_only = flags & bftEngine::MsgFlag::READ_ONLY_FLAG;
+  bool pre_execute = flags & bftEngine::MsgFlag::PRE_PROCESS_FLAG;
+  bool has_pre_executed = flags & bftEngine::MsgFlag::HAS_PRE_PROCESSED_FLAG;
+  assert(!(pre_execute && has_pre_executed));
+
   request_.Clear();
   response_.Clear();
+  request_context_.reset(nullptr);
 
-  timing_parse_.Start();
+  auto tracer = opentracing::Tracer::Global();
+  std::unique_ptr<opentracing::Span> execute_span;
+
   bool result;
-  if (request_.ParseFromArray(request_buffer, request_size)) {
-    timing_parse_.End();
+  if ((!has_pre_executed &&
+       request_.ParseFromArray(request_buffer, request_size)) ||
+      (has_pre_executed &&
+       parseFromPreExecutionResponse(request_buffer, request_size, request_))) {
+    request_context_ = std::make_unique<ConcordRequestContext>();
+    request_context_->client_id = client_id;
+    request_context_->sequence_num = sequence_num;
+    request_context_->max_response_size = max_response_size;
+
+    if (request_.has_trace_context()) {
+      std::istringstream tc_stream(request_.trace_context());
+      auto trace_context = tracer->Extract(tc_stream);
+      if (trace_context.has_value()) {
+        execute_span = tracer->StartSpan(
+            "execute", {opentracing::ChildOf(trace_context.value().get())});
+      } else {
+        LOG4CPLUS_WARN(logger_, "Command has corrupted trace context");
+        execute_span = tracer->StartSpan("execute");
+      }
+    } else {
+      LOG4CPLUS_DEBUG(logger_, "Command is missing trace context");
+      execute_span = tracer->StartSpan("execute");
+    }
+
     if (time_ && request_.has_time_request() &&
         request_.time_request().has_sample()) {
       if (!read_only) {
-        timing_time_update_.Start();
+        auto time_update_span = tracer->StartSpan(
+            "time_update", {opentracing::ChildOf(&execute_span->context())});
         TimeRequest tr = request_.time_request();
         TimeSample ts = tr.sample();
         if (!(time_->SignaturesEnabled()) && ts.has_source() && ts.has_time()) {
@@ -88,16 +119,20 @@ int ConcordCommandsHandler::execute(uint16_t client_id, uint64_t sequence_num,
                              "] signature")
                           : ""));
         }
-        timing_time_update_.End();
       } else {
         LOG4CPLUS_INFO(logger_,
                        "Ignoring time sample sent in read-only command");
       }
     }
 
-    timing_execute_.Start();
-    result = Execute(request_, read_only, time_.get(), response_);
-    timing_execute_.End();
+    // Stashing this span in our state, so that if the subclass calls addBlock,
+    // we can use it as the parent for the add_block span.
+    addBlock_parent_span = tracer->StartSpan(
+        "sub_execute", {opentracing::ChildOf(&execute_span->context())});
+    result = Execute(request_, flags, time_.get(), *addBlock_parent_span.get(),
+                     response_);
+    // Manually stopping the span after execute.
+    addBlock_parent_span.reset();
 
     if (time_ && request_.has_time_request()) {
       TimeRequest tr = request_.time_request();
@@ -107,9 +142,16 @@ int ConcordCommandsHandler::execute(uint16_t client_id, uint64_t sequence_num,
         // the rest of the command did not write its state. What should we do?
         if (result) {
           if (!read_only) {
+            // WriteEmptyBlock is going to call addBlock, and we need to tell it
+            // what tracing span to use as its parent.
+            addBlock_parent_span = std::move(execute_span);
+
             // The state machine might have had no commands in the request. Go
             // ahead and store just the time update.
             WriteEmptyBlock(time_.get());
+
+            // Reclaim control of the addBlock_span.
+            execute_span = std::move(addBlock_parent_span);
 
             // Create an empty time response, so that out_response_size is not
             // zero.
@@ -141,34 +183,40 @@ int ConcordCommandsHandler::execute(uint16_t client_id, uint64_t sequence_num,
         }
       }
 
-      timing_time_response_.Start();
-      if (tr.return_summary()) {
-        TimeResponse *tp = response_.mutable_time_response();
-        Timestamp *sum = new Timestamp(time_->GetTime());
-        tp->set_allocated_summary(sum);
-      }
+      {  // scope for time_response_span
+        auto time_response_span = tracer->StartSpan(
+            "time_response", {opentracing::ChildOf(&execute_span->context())});
+        if (tr.return_summary()) {
+          TimeResponse *tp = response_.mutable_time_response();
+          Timestamp *sum = new Timestamp(time_->GetTime());
+          tp->set_allocated_summary(sum);
+        }
 
-      if (tr.return_samples()) {
-        TimeResponse *tp = response_.mutable_time_response();
+        if (tr.return_samples()) {
+          TimeResponse *tp = response_.mutable_time_response();
 
-        for (auto &s : time_->GetSamples()) {
-          TimeSample *ts = tp->add_sample();
-          ts->set_source(s.first);
-          Timestamp *t = new Timestamp(s.second.time);
-          ts->set_allocated_time(t);
-          if (s.second.signature) {
-            ts->set_signature(s.second.signature->data(),
-                              s.second.signature->size());
+          for (auto &s : time_->GetSamples()) {
+            TimeSample *ts = tp->add_sample();
+            ts->set_source(s.first);
+            Timestamp *t = new Timestamp(s.second.time);
+            ts->set_allocated_time(t);
+            if (s.second.signature) {
+              ts->set_signature(s.second.signature->data(),
+                                s.second.signature->size());
+            }
           }
         }
       }
-      timing_time_response_.End();
     } else if (!time_ && request_.has_time_request()) {
       ErrorResponse *err = response_.add_error_response();
       err->set_description("Time service is disabled.");
     }
+
+    if (request_.has_prune_request() ||
+        request_.has_latest_prunable_block_request()) {
+      pruning_sm_->Handle(request_, response_, read_only, *execute_span);
+    }
   } else {
-    timing_parse_.End();
     ErrorResponse *err = response_.add_error_response();
     err->set_description("Unable to parse concord request");
 
@@ -176,7 +224,14 @@ int ConcordCommandsHandler::execute(uint16_t client_id, uint64_t sequence_num,
     result = true;
   }
 
-  timing_serialize_.Start();
+  // Don't bother timing serialization of the response if we didn't successfully
+  // parse the request.
+  std::unique_ptr<opentracing::Span> serialize_span =
+      execute_span == nullptr
+          ? nullptr
+          : tracer->StartSpan("serialize",
+                              {opentracing::ChildOf(&execute_span->context())});
+
   if (response_.ByteSizeLong() == 0) {
     LOG4CPLUS_ERROR(logger_, "Request produced empty response.");
     ErrorResponse *err = response_.add_error_response();
@@ -224,46 +279,94 @@ int ConcordCommandsHandler::execute(uint16_t client_id, uint64_t sequence_num,
       out_response_size = 0;
     }
   }
-  timing_serialize_.End();
-
-  log_timing();
 
   return result ? 0 : 1;
+}
+
+bool ConcordCommandsHandler::HasPreExecutionConflicts(
+    const com::vmware::concord::PreExecutionResult &pre_execution_result)
+    const {
+  const auto &read_set = pre_execution_result.read_set();
+  const auto &write_set = pre_execution_result.write_set();
+
+  const uint read_set_version = pre_execution_result.read_set_version();
+  const BlockId current_block_id = storage_.getLastBlock();
+
+  // pessimistically assume there is a conflict
+  bool has_conflict = true;
+
+  // check read set for conflicts
+  for (const auto &k : read_set.keys()) {
+    const Sliver key{std::string{k}};
+    storage_.mayHaveConflictBetween(key, read_set_version + 1, current_block_id,
+                                    has_conflict);
+    if (has_conflict) {
+      return true;
+    }
+  }
+
+  // check write set for conflicts
+  for (const auto &kv : write_set.kv_writes()) {
+    const auto &k = kv.key();
+    const Sliver key{std::string{k}};
+    storage_.mayHaveConflictBetween(key, read_set_version + 1, current_block_id,
+                                    has_conflict);
+    if (has_conflict) {
+      return true;
+    }
+  }
+
+  // the read and write set are free of conflicts
+  return false;
+}
+
+bool ConcordCommandsHandler::parseFromPreExecutionResponse(
+    const char *request_buffer, uint32_t request_size,
+    com::vmware::concord::ConcordRequest &request) {
+  // transform the ConcordResponse produced by pre-execution into a
+  // ConcordRequest for seamless integration into the rest of the execution
+  // flow
+  com::vmware::concord::ConcordResponse pre_execution_response;
+  if (pre_execution_response.ParseFromArray(request_buffer, request_size) &&
+      pre_execution_response.has_pre_execution_result()) {
+    auto *pre_execution_result = request.mutable_pre_execution_result();
+    pre_execution_result->MergeFrom(
+        pre_execution_response.pre_execution_result());
+    return true;
+  } else {
+    return false;
+  }
 }
 
 concordUtils::Status ConcordCommandsHandler::addBlock(
     const concord::storage::SetOfKeyValuePairs &updates,
     concord::storage::blockchain::BlockId &out_block_id) {
+  auto add_block_span = addBlock_parent_span->tracer().StartSpan(
+      "add_block", {opentracing::ChildOf(&addBlock_parent_span->context())});
   // The IBlocksAppender interface specifies that updates must be const, but we
   // need to add items here, so we have to make a copy and work with that. In
   // the future, maybe we can figure out how to either make updates non-const,
   // or allow addBlock to take a list of const sets.
-  concord::storage::SetOfKeyValuePairs amended_updates(updates);
+  SetOfKeyValuePairs amended_updates(updates);
 
-  if (time_ && time_->Changed()) {
-    pair<Sliver, Sliver> tc_state = time_->Serialize();
-    amended_updates[tc_state.first] = tc_state.second;
+  if (time_) {
+    if (time_->Changed()) {
+      amended_updates.insert(time_->Serialize());
+    }
+    amended_updates.insert(time_->SerializeSummarizedTime());
   }
 
-  amended_updates[metadata_storage_.BlockMetadataKey()] =
-      metadata_storage_.SerializeBlockMetadata(executing_bft_sequence_num_);
+  amended_updates[metadata_storage_.getKey()] =
+      metadata_storage_.serialize(executing_bft_sequence_num_);
 
-  return appender_.addBlock(amended_updates, out_block_id);
-}
-
-void ConcordCommandsHandler::log_timing() {
-  if (timing_enabled_ &&
-      steady_clock::now() - timing_log_last_ > timing_log_period_) {
-    LOG_INFO(logger_, metrics_.ToJson());
-    timing_log_last_ = steady_clock::now();
-
-    timing_parse_.Reset();
-    timing_time_update_.Reset();
-    timing_execute_.Reset();
-    timing_serialize_.Reset();
-    // TODO: reset execution count?
-    ClearStats();
+  concordUtils::Status status =
+      appender_.addBlock(amended_updates, out_block_id);
+  if (!status.isOK()) {
+    return status;
   }
+  written_blocks_.Increment();
+
+  return status;
 }
 
 }  // namespace consensus

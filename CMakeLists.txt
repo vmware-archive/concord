@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.13)
 project(concord)
 
 # Require C++11.
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_EXTENSIONS Off)
 #set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall")
@@ -19,6 +19,14 @@ set(BUILD_ROCKSDB_STORAGE TRUE CACHE BOOL "concord needs rocksdb")
 option(USE_LOG4CPP "Enable LOG4CPP" TRUE)
 set(CONCORD_LOGGER_NAME "concord.bft")
 
+# need threads
+find_package (Threads)
+
+# need OpenSSL for concord-bft util/test
+find_package(OpenSSL REQUIRED)
+        message("OpenSSL include dir: ${OPENSSL_INCLUDE_DIR}")
+        message("OpenSSL libraries: ${OPENSSL_LIBRARIES}")
+        
 # Default BUILD_COMM_TCP_PLAIN to FALSE
 option(BUILD_COMM_TCP_PLAIN "Enable TCP communication" FALSE)
 
@@ -38,12 +46,16 @@ endif()
 find_package(Protobuf REQUIRED)
 include_directories(${PROTOBUF_INCLUDE_DIR})
 
-#find_package(GRPC REQUIRED)
-#include_directories(${GRPC_INCLUDE_DIR})
+find_package(GRPC REQUIRED)
+include_directories(${GRPC_INCLUDE_DIR})
 
 find_package(Boost 1.65 COMPONENTS system program_options thread filesystem
         REQUIRED)
 include_directories(${Boost_INCLUDE_DIRS})
+
+
+find_package(jaegertracing CONFIG REQUIRED)
+find_package(prometheus-cpp CONFIG REQUIRED)
 
 #find_package(Log4Cplus REQUIRED)
 configure_file(test/resources/log4cplus.properties test/resources/log4cplus.properties COPYONLY)
@@ -58,11 +70,13 @@ find_package(Evmone REQUIRED)
 include_directories(${Evmone_INCLUDE_DIRS})
 set(EVM_LIBRARIES ${Evmone_LIBRARIES})
 
-find_package(Cryptopp REQUIRED)
+find_package(cryptopp REQUIRED)
 
 find_package(yaml-cpp REQUIRED)
 include_directories(${yaml-cpp_INCLUDE_DIRS})
 
+find_package(GTest REQUIRED)
+set(USE_CONAN FALSE)
 add_subdirectory("submodules")
 add_subdirectory("proto")
 add_subdirectory("src")
@@ -70,6 +84,6 @@ add_subdirectory("tools")
 add_subdirectory("scripts")
 
 ## Unit tests with googletest
-find_package(GTEST REQUIRED)
+#find_package(GTEST REQUIRED)
 add_subdirectory("test")
 enable_testing()

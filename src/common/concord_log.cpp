@@ -17,22 +17,24 @@ namespace common {
 
 // Print a vector of bytes as its 0x<hex> representation.
 std::ostream& operator<<(std::ostream& s, const HexPrintVector v) {
-  return hexPrint(s, &v.vec[0], v.vec.size());
+  return hexPrint(s, reinterpret_cast<const char*>(&v.vec[0]), v.vec.size());
 };
 
 // Print a char* of bytes as its 0x<hex> representation.
 std::ostream& operator<<(std::ostream& s, const HexPrintBytes p) {
-  return hexPrint(s, reinterpret_cast<const uint8_t*>(p.bytes), p.size);
+  return hexPrint(s, p.bytes, p.size);
 };
 
 // Print an evmc_address as its 0x<hex> representation.
 std::ostream& operator<<(std::ostream& s, const evmc_address& a) {
-  return hexPrint(s, a.bytes, sizeof(evmc_address));
+  return hexPrint(s, reinterpret_cast<const char*>(a.bytes),
+                  sizeof(evmc_address));
 };
 
 // Print an evmc_uint256be as its 0x<hex> representation.
 std::ostream& operator<<(std::ostream& s, const evmc_uint256be& u) {
-  return hexPrint(s, u.bytes, sizeof(evmc_uint256be));
+  return hexPrint(s, reinterpret_cast<const char*>(u.bytes),
+                  sizeof(evmc_uint256be));
 };
 
 std::ostream& operator<<(std::ostream& s, evmc_call_kind kind) {

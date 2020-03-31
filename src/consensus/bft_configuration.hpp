@@ -1,5 +1,8 @@
 // Copyright (c) 2018-2019 VMware, Inc. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
+//
+// Temporary solution for creating configuration structs for concord-bft
+// Ideally, the ReplicaConfig from BlockchainInterfaces.h
 
 #ifndef CONCORD_CONSENSUS_BFT_CONFIGURATION_HPP_
 #define CONCORD_CONSENSUS_BFT_CONFIGURATION_HPP_
@@ -9,11 +12,9 @@
 #include "IThresholdFactory.h"
 #include "IThresholdSigner.h"
 #include "IThresholdVerifier.h"
+#include "KVBCInterfaces.h"
+#include "config/communication.hpp"
 #include "config/configuration_manager.hpp"
-#include "consensus/client_interface.h"
-#include "consensus/communication.h"
-#include "consensus/replica_interface.h"
-
 namespace concord {
 namespace consensus {
 
@@ -23,21 +24,13 @@ const std::string MAX_ITEM_LENGTH_STR = std::to_string(MAX_ITEM_LENGTH);
 void initializeSBFTThresholdPublicKeys(
     concord::config::ConcordConfiguration& config, bool isClient, uint16_t f,
     uint16_t c, bool supportDirectProofs,
-    IThresholdVerifier*& thresholdVerifierForExecution,
     IThresholdVerifier*& thresholdVerifierForSlowPathCommit,
     IThresholdVerifier*& thresholdVerifierForCommit,
     IThresholdVerifier*& thresholdVerifierForOptimisticCommit) {
   concord::config::ConcordPrimaryConfigurationAuxiliaryState* auxState;
-  auxState =
-      dynamic_cast<concord::config::ConcordPrimaryConfigurationAuxiliaryState*>(
-          config.getAuxiliaryState());
-  assert(auxState);
-
-  if (supportDirectProofs) {
-    assert(auxState->executionCryptosys);
-    thresholdVerifierForExecution =
-        auxState->executionCryptosys->createThresholdVerifier();
-  }
+  assert(auxState = dynamic_cast<
+             concord::config::ConcordPrimaryConfigurationAuxiliaryState*>(
+             config.getAuxiliaryState()));
 
   // The Client class only needs the f+1 parameters
   if (isClient) {
@@ -64,24 +57,17 @@ void initializeSBFTThresholdPublicKeys(
  */
 void initializeSBFTThresholdPrivateKeys(
     concord::config::ConcordConfiguration& config, uint16_t myReplicaId,
-    uint16_t f, uint16_t c, IThresholdSigner*& thresholdSignerForExecution,
-    IThresholdSigner*& thresholdSignerForSlowPathCommit,
+    uint16_t f, uint16_t c, IThresholdSigner*& thresholdSignerForSlowPathCommit,
     IThresholdSigner*& thresholdSignerForCommit,
     IThresholdSigner*& thresholdSignerForOptimisticCommit,
     bool supportDirectProofs) {
   concord::config::ConcordPrimaryConfigurationAuxiliaryState* auxState;
-  auxState =
-      dynamic_cast<concord::config::ConcordPrimaryConfigurationAuxiliaryState*>(
-          config.getAuxiliaryState());
-  assert(auxState);
+  assert(auxState = dynamic_cast<
+             concord::config::ConcordPrimaryConfigurationAuxiliaryState*>(
+             config.getAuxiliaryState()));
 
-  // f + 1
-  if (supportDirectProofs) {
-    assert(auxState->executionCryptosys);
-    thresholdSignerForExecution =
-        auxState->executionCryptosys->createThresholdSigner();
-  } else {
-    printf("\n does not support direct proofs!");
+  if (!supportDirectProofs) {
+    printf("\nDoes not support direct proofs!\n");
   }
 
   // 2f + c + 1
@@ -109,12 +95,9 @@ inline bool initializeSBFTCrypto(
     uint16_t nodeId, uint16_t numOfReplicas, uint16_t maxFaulty,
     uint16_t maxSlow, concord::config::ConcordConfiguration& config,
     concord::config::ConcordConfiguration& replicaConfig,
-    std::set<std::pair<uint16_t, std::string>> publicKeysOfReplicas,
-    concord::consensus::ReplicaConsensusConfig* outConfig) {
+    std::set<std::pair<uint16_t, const std::string>> publicKeysOfReplicas,
+    bftEngine::ReplicaConfig* outConfig) {
   // Threshold signatures
-  IThresholdSigner* thresholdSignerForExecution;
-  IThresholdVerifier* thresholdVerifierForExecution;
-
   IThresholdSigner* thresholdSignerForSlowPathCommit;
   IThresholdVerifier* thresholdVerifierForSlowPathCommit;
 
@@ -129,13 +112,13 @@ inline bool initializeSBFTCrypto(
 
   initializeSBFTThresholdPublicKeys(
       config, false, maxFaulty, maxSlow, supportDirectProofs,
-      thresholdVerifierForExecution, thresholdVerifierForSlowPathCommit,
-      thresholdVerifierForCommit, thresholdVerifierForOptimisticCommit);
+      thresholdVerifierForSlowPathCommit, thresholdVerifierForCommit,
+      thresholdVerifierForOptimisticCommit);
 
   initializeSBFTThresholdPrivateKeys(
-      config, nodeId + 1, maxFaulty, maxSlow, thresholdSignerForExecution,
-      thresholdSignerForSlowPathCommit, thresholdSignerForCommit,
-      thresholdSignerForOptimisticCommit, supportDirectProofs);
+      config, nodeId + 1, maxFaulty, maxSlow, thresholdSignerForSlowPathCommit,
+      thresholdSignerForCommit, thresholdSignerForOptimisticCommit,
+      supportDirectProofs);
 
   outConfig->publicKeysOfReplicas = publicKeysOfReplicas;
 
@@ -161,8 +144,8 @@ inline bool initializeSBFTCrypto(
 inline bool initializeSBFTPrincipals(
     concord::config::ConcordConfiguration& config, uint16_t selfNumber,
     uint16_t numOfPrincipals, uint16_t numOfReplicas,
-    concord::consensus::CommConfig* outCommConfig,
-    std::set<std::pair<uint16_t, std::string>>& outReplicasPublicKeys) {
+    concord::config::CommConfig* outCommConfig,
+    std::set<std::pair<uint16_t, const std::string>>& outReplicasPublicKeys) {
   uint16_t clientProxiesPerReplica =
       config.getValue<uint16_t>("client_proxies_per_replica");
   for (uint16_t i = 0; i < numOfReplicas; ++i) {
@@ -219,9 +202,9 @@ inline bool initializeSBFTPrincipals(
 inline bool initializeSBFTConfiguration(
     concord::config::ConcordConfiguration& config,
     concord::config::ConcordConfiguration& nodeConfig,
-    concord::consensus::CommConfig* commConfig,
-    concord::consensus::ClientConsensusConfig* clConf, uint16_t clientIndex,
-    concord::consensus::ReplicaConsensusConfig* repConf) {
+    concord::config::CommConfig* commConfig,
+    concord::kvbc::ClientConfig* clConf, uint16_t clientIndex,
+    bftEngine::ReplicaConfig* repConf) {
   assert(!clConf != !repConf);
 
   // Initialize random number generator
@@ -238,7 +221,7 @@ inline bool initializeSBFTConfiguration(
   uint16_t numOfPrincipals = config.getValue<uint16_t>("num_principals");
   uint16_t numOfReplicas = config.getValue<uint16_t>("num_replicas");
 
-  std::set<pair<uint16_t, string>> publicKeysOfReplicas;
+  std::set<pair<uint16_t, const std::string>> publicKeysOfReplicas;
   if (commConfig) {
     bool res = initializeSBFTPrincipals(config, selfNumber, numOfPrincipals,
                                         numOfReplicas, commConfig,
@@ -262,6 +245,7 @@ inline bool initializeSBFTConfiguration(
         config.getValue<uint16_t>("status_time_interval");
     repConf->concurrencyLevel = config.getValue<uint16_t>("concurrency_level");
 
+    repConf->numReplicas = numOfReplicas;
     repConf->replicaId = selfNumber;
     repConf->fVal = maxFaulty;
     repConf->cVal = maxSlow;
@@ -270,8 +254,11 @@ inline bool initializeSBFTConfiguration(
     repConf->debugStatisticsEnabled =
         nodeConfig.getValue<bool>("concord-bft_enable_debug_statistics");
 
+    repConf->preExecReqStatusCheckTimerMillisec = nodeConfig.getValue<uint64_t>(
+        "preexec_requests_status_check_period_millisec");
+
     // TODO(IG): add to config file
-    repConf->autoViewChangeEnabled = true;
+    repConf->viewChangeProtocolEnabled = true;
 
 #define DEFAULT(field, userCfg)                            \
   {                                                        \
@@ -286,8 +273,8 @@ inline bool initializeSBFTConfiguration(
 #undef DEFAULT
   } else {
     clConf->clientId = selfNumber;
-    clConf->maxFaulty = maxFaulty;
-    clConf->maxSlow = maxSlow;
+    clConf->fVal = maxFaulty;
+    clConf->cVal = maxSlow;
   }
 
   return true;

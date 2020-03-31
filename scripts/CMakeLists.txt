@@ -7,22 +7,22 @@ find_program(
   DOC "Path to clang-format"
 )
 find_program(
-  FORMAT_CODE_SCRIPT
-  format-code.sh
-  HINTS ../scripts/
+  FORMAT_CODE_CONCORD_SCRIPT
+  format-code-concord.sh
+  PATH ${CMAKE_SOURCE_DIR}/scripts/
   NO_DEFAULT_PATH
-  DOC "Path to format-code.sh"
+  DOC "Path to format-code-concord.sh"
 )
 if(CLANG_FORMAT_EXE)
-  if(FORMAT_CODE_SCRIPT)
-    add_custom_target(format-check ALL
-      COMMENT "Check code format via ${FORMAT_CODE_SCRIPT}"
-      COMMAND ${FORMAT_CODE_SCRIPT} ${CMAKE_CURRENT_SOURCE_DIR}/.. --is-required)
-    add_custom_target(format
-      COMMENT "Change code format via ${FORMAT_CODE_SCRIPT}"
-      COMMAND ${FORMAT_CODE_SCRIPT} ${CMAKE_CURRENT_SOURCE_DIR}/..)
+  if(FORMAT_CODE_CONCORD_SCRIPT)
+    add_custom_target(format-check-concord ALL
+      COMMENT "Check code format (concord) via ${FORMAT_CODE_CONCORD_SCRIPT}"
+      COMMAND ${FORMAT_CODE_CONCORD_SCRIPT} ${CMAKE_CURRENT_SOURCE_DIR}/.. --is-required)
+    add_custom_target(format-concord
+      COMMENT "Change code format (concord) via ${FORMAT_CODE_CONCORD_SCRIPT}"
+      COMMAND ${FORMAT_CODE_CONCORD_SCRIPT} ${CMAKE_CURRENT_SOURCE_DIR}/..)
   else()
-    message("Couldn't find format-code.sh")
+    message("Couldn't find format-code-concord.sh")
   endif()
 else()
   message("Couldn't find clang-format")

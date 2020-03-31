@@ -12,6 +12,7 @@
 #include "api/api_connection.hpp"
 #include "api/connection_manager.hpp"
 #include "common/status_aggregator.hpp"
+#include "config/configuration_manager.hpp"
 #include "consensus/kvb_client.hpp"
 
 namespace concord {
@@ -23,7 +24,8 @@ class ApiAcceptor {
               boost::asio::ip::tcp::endpoint endpoint,
               concord::consensus::KVBClientPool &clientPool,
               concord::common::StatusAggregator &sag, uint64_t gasLimit,
-              uint64_t chainID, bool ethEnabled);
+              uint64_t chainID, bool ethEnabled,
+              const concord::config::ConcordConfiguration &nodeConfig);
 
  private:
   boost::asio::ip::tcp::acceptor acceptor_;
@@ -34,6 +36,7 @@ class ApiAcceptor {
   uint64_t gasLimit_;
   uint64_t chainID_;
   bool ethEnabled_;
+  const concord::config::ConcordConfiguration &nodeConfig_;
 
   void start_accept();
 

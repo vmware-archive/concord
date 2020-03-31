@@ -1,4 +1,4 @@
-FROM vmwconcord/concord-builder:0.1 AS concord-build
+FROM vmwconcord/concord-builder:0.2 AS concord-build
 
 RUN apt-get update \
     && apt-get -y install gdb \

@@ -28,6 +28,7 @@
 
 #include <boost/predef/detail/endian_compat.h>
 #include <google/protobuf/util/time_util.h>
+#include <opentracing/tracer.h>
 #include <boost/bind.hpp>
 #include <iostream>
 #include <limits>
@@ -65,9 +66,10 @@ namespace api {
 ApiConnection::pointer ApiConnection::create(
     io_service &io_service, ConnectionManager &connManager,
     KVBClientPool &clientPool, StatusAggregator &sag, uint64_t gasLimit,
-    uint64_t chainID, bool ethEnabled) {
+    uint64_t chainID, bool ethEnabled,
+    const concord::config::ConcordConfiguration &nodeConfig) {
   return pointer(new ApiConnection(io_service, connManager, clientPool, sag,
-                                   gasLimit, chainID, ethEnabled));
+                                   gasLimit, chainID, ethEnabled, nodeConfig));
 }
 
 tcp::socket &ApiConnection::socket() { return socket_; }
@@ -213,8 +215,15 @@ void ApiConnection::process_incoming() {
                                      get_message_length(inMsgBuffer_))) {
     LOG4CPLUS_DEBUG(logger_, "Parsed!");
 
+    // TODO: add correlation ID and/or tracing context from request
+    span_ = opentracing::Tracer::Global()->StartSpan("api_request");
+
     // handle the request
     dispatch();
+
+    // Reseting the unique_ptr destructs the span, ending its timing and
+    // publishing it.
+    span_.reset(nullptr);
   } else {
     // Parsing failed
     ErrorResponse *e = concordResponse_.add_error_response();
@@ -293,6 +302,12 @@ void ApiConnection::dispatch() {
   }
   if (concordRequest_.has_time_request()) {
     handle_time_request();
+  }
+  if (concordRequest_.has_latest_prunable_block_request()) {
+    handle_latest_prunable_block_request();
+  }
+  if (concordRequest_.has_prune_request()) {
+    handle_prune_request();
   }
   if (concordRequest_.has_test_request()) {
     handle_test_request();
@@ -520,7 +535,7 @@ void ApiConnection::handle_eth_request(int i) {
     }
 
     ConcordResponse internalResponse;
-    if (clientPool_.send_request_sync(internalRequest, isReadOnly,
+    if (clientPool_.send_request_sync(internalRequest, isReadOnly, *span_.get(),
                                       internalResponse)) {
       concordResponse_.MergeFrom(internalResponse);
     } else {
@@ -577,7 +592,7 @@ void ApiConnection::handle_block_list_request() {
   ConcordResponse internalConcResponse;
 
   if (clientPool_.send_request_sync(internalConcRequest, true /* read only */,
-                                    internalConcResponse)) {
+                                    *span_.get(), internalConcResponse)) {
     concordResponse_.MergeFrom(internalConcResponse);
   } else {
     ErrorResponse *error = concordResponse_.add_error_response();
@@ -603,7 +618,7 @@ void ApiConnection::handle_block_request() {
 
   ConcordResponse internalResponse;
   if (clientPool_.send_request_sync(internalRequest, true /* read only */,
-                                    internalResponse)) {
+                                    *span_.get(), internalResponse)) {
     concordResponse_.MergeFrom(internalResponse);
   } else {
     LOG4CPLUS_ERROR(logger_, "Error parsing read-only response");
@@ -630,7 +645,7 @@ void ApiConnection::handle_transaction_request() {
 
   ConcordResponse internalResponse;
   if (clientPool_.send_request_sync(internalRequest, true /* read only */,
-                                    internalResponse)) {
+                                    *span_.get(), internalResponse)) {
     concordResponse_.MergeFrom(internalResponse);
   } else {
     LOG4CPLUS_ERROR(logger_, "Error parsing read-only response");
@@ -649,7 +664,8 @@ void ApiConnection::handle_transaction_list_request() {
   txListReq->CopyFrom(request);
 
   ConcordResponse internalResponse;
-  if (clientPool_.send_request_sync(internalRequest, true, internalResponse)) {
+  if (clientPool_.send_request_sync(internalRequest, true, *span_.get(),
+                                    internalResponse)) {
     concordResponse_.MergeFrom(internalResponse);
   } else {
     LOG4CPLUS_ERROR(logger_, "Error parsing read-only response");
@@ -666,7 +682,8 @@ void ApiConnection::handle_logs_request() {
   logsReq->CopyFrom(request);
 
   ConcordResponse internalResponse;
-  if (clientPool_.send_request_sync(internalRequest, true, internalResponse)) {
+  if (clientPool_.send_request_sync(internalRequest, true, *span_.get(),
+                                    internalResponse)) {
     concordResponse_.MergeFrom(internalResponse);
   } else {
     LOG4CPLUS_ERROR(logger_, "Error parsing read-only response");
@@ -690,12 +707,58 @@ void ApiConnection::handle_time_request() {
   // sample was provided, this is just a request to read the latest state.
   bool readOnly = !request.has_sample();
 
-  if (clientPool_.send_request_sync(internalConcRequest, readOnly,
+  if (clientPool_.send_request_sync(internalConcRequest, readOnly, *span_.get(),
                                     internalConcResponse)) {
     concordResponse_.MergeFrom(internalConcResponse);
   } else {
     ErrorResponse *error = concordResponse_.add_error_response();
     error->set_description("Internal concord Error");
+  }
+}
+
+/**
+ * Handle a request for the latest prunable block.
+ */
+void ApiConnection::handle_latest_prunable_block_request() {
+  const auto request = concordRequest_.latest_prunable_block_request();
+
+  ConcordRequest internalConcRequest;
+  auto internalLatestPrunableBlockRequest =
+      internalConcRequest.mutable_latest_prunable_block_request();
+  internalLatestPrunableBlockRequest->CopyFrom(request);
+  ConcordResponse internalConcResponse;
+
+  // TODO: Assumption here is that the KVB client will accumulate different
+  // responses from replicas into LatestPrunableBlockResponse's list.
+  if (clientPool_.send_request_sync(internalConcRequest, true, *span_.get(),
+                                    internalConcResponse)) {
+    concordResponse_.MergeFrom(internalConcResponse);
+  } else {
+    concordResponse_.add_error_response()->set_description(
+        "Internal concord Error");
+  }
+}
+
+/**
+ * Handle a prune request.
+ */
+void ApiConnection::handle_prune_request() {
+  const auto request = concordRequest_.prune_request();
+
+  ConcordRequest internalConcRequest;
+  auto internalPruneRequest = internalConcRequest.mutable_prune_request();
+  internalPruneRequest->CopyFrom(request);
+  ConcordResponse internalConcResponse;
+
+  internalPruneRequest->set_sender(pruneRequestSenderId_);
+  pruningSigner_.Sign(*internalPruneRequest);
+
+  if (clientPool_.send_request_sync(internalConcRequest, false, *span_.get(),
+                                    internalConcResponse)) {
+    concordResponse_.MergeFrom(internalConcResponse);
+  } else {
+    concordResponse_.add_error_response()->set_description(
+        "Internal concord Error");
   }
 }
 
@@ -779,7 +842,7 @@ uint64_t ApiConnection::current_block_number() {
   ConcordResponse internalResp;
 
   if (clientPool_.send_request_sync(internalReq, true /* read only */,
-                                    internalResp)) {
+                                    *span_.get(), internalResp)) {
     if (internalResp.eth_response_size() > 0) {
       std::string strblk = internalResp.eth_response(0).data();
       evmc_uint256be rawNumber;
@@ -791,10 +854,11 @@ uint64_t ApiConnection::current_block_number() {
   return 0;
 }
 
-ApiConnection::ApiConnection(io_service &io_service, ConnectionManager &manager,
-                             KVBClientPool &clientPool, StatusAggregator &sag,
-                             uint64_t gasLimit, uint64_t chainID,
-                             bool ethEnabled)
+ApiConnection::ApiConnection(
+    io_service &io_service, ConnectionManager &manager,
+    KVBClientPool &clientPool, StatusAggregator &sag, uint64_t gasLimit,
+    uint64_t chainID, bool ethEnabled,
+    const concord::config::ConcordConfiguration &nodeConfig)
     : socket_(io_service),
       logger_(
           log4cplus::Logger::getInstance("com.vmware.concord.ApiConnection")),
@@ -803,8 +867,17 @@ ApiConnection::ApiConnection(io_service &io_service, ConnectionManager &manager,
       sag_(sag),
       gasLimit_(gasLimit),
       chainID_(chainID),
-      ethEnabled_(ethEnabled) {
-  // nothing to do here yet other than initialize the socket and logger
+      ethEnabled_(ethEnabled),
+      pruningSigner_{nodeConfig} {
+  // Always use the first client proxy's principal_id for PruneRequest messages.
+  // This is a workaround to support signed PruneRequest messages coming from
+  // the API. Support for PruneRequest over the API can be removed at a later
+  // stage when the operator node uses its own BFT client.
+  if (nodeConfig.containsScope("client_proxy") &&
+      nodeConfig.scopeSize("client_proxy")) {
+    pruneRequestSenderId_ = nodeConfig.subscope("client_proxy", 0)
+                                .getValue<uint64_t>("principal_id");
+  }
 }
 
 }  // namespace api

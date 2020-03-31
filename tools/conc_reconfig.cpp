@@ -76,7 +76,7 @@ int main(int argc, char** argv) {
         if (concResp.error_response_size() > 0) {
           cout << "Concord reported error(s) during requested reconfiguration:"
                << endl;
-          for (size_t i = 0; i < concResp.error_response_size(); ++i) {
+          for (int64_t i = 0; i < concResp.error_response_size(); ++i) {
             ErrorResponse errorResp = concResp.error_response(i);
             if (errorResp.has_description()) {
               cout << " ErrorResponse " << to_string(i) << ": "

@@ -1,32 +1,38 @@
 // Copyright (c) 2018-2019 VMware, Inc. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-//
-// Test ReplicaStateSyncImp class.
+/**
+ * Test ReplicaStateSyncImp class.
+ */
 
 #define USE_ROCKSDB 1
 
 #include <log4cplus/configurator.h>
 #include <log4cplus/hierarchy.h>
 #include <log4cplus/loggingmacros.h>
+#include "blockchain/block.h"
 #include "blockchain/db_adapter.h"
-#include "consensus/replica_state_sync_imp.hpp"
 #include "gtest/gtest.h"
+#include "replica_state_sync_imp.hpp"
+
 #include "rocksdb/client.h"
 #include "rocksdb/key_comparator.h"
-#include "storage/concord_metadata_storage.h"
+#include "storage/concord_block_metadata.h"
+
+#include <memory>
 
 using namespace std;
 using namespace log4cplus;
 
-using concord::consensus::ReplicaStateSyncImp;
-using concord::storage::ConcordMetadataStorage;
-using concord::storage::blockchain::BlockEntry;
-using concord::storage::blockchain::BlockHeader;
+using concord::kvbc::ReplicaStateSyncImp;
+using concord::storage::ConcordBlockMetadata;
+using BlockEntry = concord::storage::blockchain::block::detail::Entry;
+using BlockHeader = concord::storage::blockchain::block::detail::Header;
 using concord::storage::blockchain::DBAdapter;
+using concord::storage::blockchain::DBKeyComparator;
+using concord::storage::blockchain::DBKeyManipulator;
 using concord::storage::blockchain::IBlocksAppender;
 using concord::storage::blockchain::ILocalKeyValueStorageReadOnly;
 using concord::storage::blockchain::ILocalKeyValueStorageReadOnlyIterator;
-using concord::storage::blockchain::KeyManipulator;
 using concord::storage::rocksdb::Client;
 using concord::storage::rocksdb::KeyComparator;
 using concordUtils::BlockId;
@@ -38,10 +44,9 @@ using concordUtils::Value;
 
 namespace {
 
-Client *dbClient = nullptr;
+std::shared_ptr<Client> dbClient;
 DBAdapter *bcDBAdapter = nullptr;
 Logger *logger = nullptr;
-ReplicaStateSyncImp replicaStateSync;
 Value emptyValue;
 const BlockId lastBlockId = 2;
 const uint64_t lastSeqNum = 50;
@@ -84,8 +89,7 @@ class MockIBlocksAppender : public IBlocksAppender {
   }
 };
 
-void fillBufAndAdvance(uint8_t *&buffer, const void *data,
-                       const size_t dataSize) {
+void fillBufAndAdvance(char *&buffer, const void *data, const size_t dataSize) {
   memcpy(buffer, data, dataSize);
   buffer += dataSize;
 }
@@ -102,39 +106,40 @@ Sliver setUpBlockContent(Key key, Value blockValue) {
   entry.valOffset = sizeOfMetadata + key.length();
 
   size_t sizeOfBuf = sizeOfMetadata + key.length() + blockValue.length();
-  auto buf = new uint8_t[sizeOfBuf];
-  uint8_t *ptr = buf;
+  char *buf = new char[sizeOfBuf];
+  char *ptr = buf;
   fillBufAndAdvance(ptr, &blockHeader, sizeof(blockHeader));
   fillBufAndAdvance(ptr, &entry, sizeof(entry));
-  fillBufAndAdvance(ptr, &key, key.length());
-  fillBufAndAdvance(ptr, &blockValue, blockValue.length());
+  fillBufAndAdvance(ptr, key.data(), key.length());
+  fillBufAndAdvance(ptr, blockValue.data(), blockValue.length());
 
   return Sliver(buf, sizeOfBuf);
 }
 
 MockILocalKeyValueStorageReadOnly keyValueStorageMock;
 MockIBlocksAppender blocksAppenderMock;
+ReplicaStateSyncImp replicaStateSync(
+    new ConcordBlockMetadata(keyValueStorageMock));
 
-ConcordMetadataStorage kvbStorage(keyValueStorageMock);
+ConcordBlockMetadata kvbStorage(keyValueStorageMock);
 
-const Sliver blockMetadataInternalKey = kvbStorage.BlockMetadataKey();
+const Sliver blockMetadataInternalKey = kvbStorage.getKey();
 
-KeyManipulator kManipulator = KeyManipulator();
 const Key lastBlockFullKey =
-    kManipulator.genDataDbKey(blockMetadataInternalKey, lastBlockId);
-const Value lastBlockValue = kvbStorage.SerializeBlockMetadata(lastSeqNum + 2);
+    DBKeyManipulator::genDataDbKey(blockMetadataInternalKey, lastBlockId);
+const Value lastBlockValue = kvbStorage.serialize(lastSeqNum + 2);
 
 const Key prevBlockFullKey =
-    kManipulator.genDataDbKey(blockMetadataInternalKey, prevBlockId);
-const Value prevBlockValue = kvbStorage.SerializeBlockMetadata(lastSeqNum + 1);
+    DBKeyManipulator::genDataDbKey(blockMetadataInternalKey, prevBlockId);
+const Value prevBlockValue = kvbStorage.serialize(lastSeqNum + 1);
 
 const Key prevPrevBlockFullKey =
-    kManipulator.genDataDbKey(blockMetadataInternalKey, prevPrevBlockId);
-const Value prevPrevBlockValue = kvbStorage.SerializeBlockMetadata(lastSeqNum);
+    DBKeyManipulator::genDataDbKey(blockMetadataInternalKey, prevPrevBlockId);
+const Value prevPrevBlockValue = kvbStorage.serialize(lastSeqNum);
 
 const Key singleBlockValueFullKey =
-    kManipulator.genDataDbKey(blockMetadataInternalKey, singleBlockId);
-const Value singleBlockValue = kvbStorage.SerializeBlockMetadata(lastSeqNum);
+    DBKeyManipulator::genDataDbKey(blockMetadataInternalKey, singleBlockId);
+const Value singleBlockValue = kvbStorage.serialize(lastSeqNum);
 
 Status MockILocalKeyValueStorageReadOnly::get(const Key &key,
                                               Value &outValue) const {
@@ -161,8 +166,9 @@ Status MockILocalKeyValueStorageReadOnly::get(const Key &key,
 
 TEST(replicaStateSync_test, state_in_sync) {
   blockIdToBeRead = singleBlockId;
-  uint64_t removedBlocks = replicaStateSync.execute(
-      *logger, *bcDBAdapter, keyValueStorageMock, singleBlockId, lastSeqNum);
+
+  uint64_t removedBlocks = replicaStateSync.execute(*logger, *bcDBAdapter,
+                                                    singleBlockId, lastSeqNum);
   ASSERT_EQ(removedBlocks, 0);
 }
 
@@ -171,9 +177,9 @@ TEST(replicaStateSync_test, block_removed) {
   dbClient->put(prevBlockFullKey, prevBlockValue);
   dbClient->put(lastBlockFullKey, lastBlockValue);
 
-  Sliver prevPrevBlockDbKey = kManipulator.genBlockDbKey(prevPrevBlockId);
-  Sliver prevBlockDbKey = kManipulator.genBlockDbKey(prevBlockId);
-  Sliver lastBlockDbKey = kManipulator.genBlockDbKey(lastBlockId);
+  Sliver prevPrevBlockDbKey = DBKeyManipulator::genBlockDbKey(prevPrevBlockId);
+  Sliver prevBlockDbKey = DBKeyManipulator::genBlockDbKey(prevBlockId);
+  Sliver lastBlockDbKey = DBKeyManipulator::genBlockDbKey(lastBlockId);
 
   dbClient->put(prevPrevBlockDbKey,
                 setUpBlockContent(prevPrevBlockFullKey, prevPrevBlockValue));
@@ -183,8 +189,8 @@ TEST(replicaStateSync_test, block_removed) {
                 setUpBlockContent(lastBlockFullKey, lastBlockValue));
 
   blockIdToBeRead = lastBlockId;
-  uint64_t removedBlocks = replicaStateSync.execute(
-      *logger, *bcDBAdapter, keyValueStorageMock, lastBlockId, lastSeqNum);
+  uint64_t removedBlocks =
+      replicaStateSync.execute(*logger, *bcDBAdapter, lastBlockId, lastSeqNum);
 
   ASSERT_EQ(removedBlocks, 2);
 }
@@ -200,12 +206,12 @@ int main(int argc, char **argv) {
   BasicConfigurator config(hierarchy, false);
   config.configure();
   const string dbPath = "./replicaStateSync_test";
-  dbClient = new Client(dbPath, new KeyComparator(new KeyManipulator()));
+  dbClient = std::make_shared<Client>(dbPath,
+                                      new KeyComparator(new DBKeyComparator()));
   bcDBAdapter = new DBAdapter(dbClient);
 
   int res = RUN_ALL_TESTS();
 
   delete bcDBAdapter;
-  // bcDBAdapter took ownership of dbClient - no need to delete here
   return res;
 }
