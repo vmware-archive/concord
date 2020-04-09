@@ -1,5 +1,5 @@
 
-FROM vmwconcord/concord-builder:0.1 AS concord-build
+FROM vmwconcord/concord-builder:0.2 AS concord-build
 
 # The build context should be the root of the repository.
 
