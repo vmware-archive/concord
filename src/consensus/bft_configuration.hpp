@@ -28,9 +28,11 @@ void initializeSBFTThresholdPublicKeys(
     IThresholdVerifier*& thresholdVerifierForCommit,
     IThresholdVerifier*& thresholdVerifierForOptimisticCommit) {
   concord::config::ConcordPrimaryConfigurationAuxiliaryState* auxState;
-  assert(auxState = dynamic_cast<
-             concord::config::ConcordPrimaryConfigurationAuxiliaryState*>(
-             config.getAuxiliaryState()));
+
+  auxState =
+      dynamic_cast<concord::config::ConcordPrimaryConfigurationAuxiliaryState*>(
+          config.getAuxiliaryState());
+  assert(auxState);
 
   // The Client class only needs the f+1 parameters
   if (isClient) {
@@ -62,9 +64,10 @@ void initializeSBFTThresholdPrivateKeys(
     IThresholdSigner*& thresholdSignerForOptimisticCommit,
     bool supportDirectProofs) {
   concord::config::ConcordPrimaryConfigurationAuxiliaryState* auxState;
-  assert(auxState = dynamic_cast<
-             concord::config::ConcordPrimaryConfigurationAuxiliaryState*>(
-             config.getAuxiliaryState()));
+  auxState =
+      dynamic_cast<concord::config::ConcordPrimaryConfigurationAuxiliaryState*>(
+          config.getAuxiliaryState());
+  assert(auxState);
 
   if (!supportDirectProofs) {
     printf("\nDoes not support direct proofs!\n");

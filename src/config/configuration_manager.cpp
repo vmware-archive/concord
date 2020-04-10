@@ -4130,8 +4130,10 @@ void loadSBFTCryptosystems(ConcordConfiguration& config) {
   }
 
   ConcordPrimaryConfigurationAuxiliaryState* auxState;
-  assert(auxState = dynamic_cast<ConcordPrimaryConfigurationAuxiliaryState*>(
-             config.getAuxiliaryState()));
+  auxState = dynamic_cast<ConcordPrimaryConfigurationAuxiliaryState*>(
+      config.getAuxiliaryState());
+
+  assert(auxState);
 
   uint16_t fVal = config.getValue<uint16_t>("f_val");
   uint16_t cVal = config.getValue<uint16_t>("c_val");
