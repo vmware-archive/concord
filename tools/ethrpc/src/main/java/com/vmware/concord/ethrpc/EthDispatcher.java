@@ -126,6 +126,7 @@ public final class EthDispatcher extends TextWebSocketHandler {
             for (Object params : batchRequest) {
                 JSONObject requestParams = (JSONObject) params;
 
+                logger.info("Request Params: " + requestParams);
                 // Dispatch requests to the corresponding handlers
                 batchResponse.add(dispatch(requestParams));
             }
@@ -245,6 +246,7 @@ public final class EthDispatcher extends TextWebSocketHandler {
         ThreadContext.put("method", "POST");
         ThreadContext.put("uri", "/");
         JSONAware responseBody = getResponse(paramString);
+        logger.info("Response Body: " + paramString);
         logger.debug("Response: " + responseBody.toJSONString());
         return new ResponseEntity<>(responseBody, standardHeaders, HttpStatus.OK);
     }
@@ -361,6 +363,7 @@ public final class EthDispatcher extends TextWebSocketHandler {
                         if (errResponse.hasDescription()) {
                             responseObject = errorMessage(errResponse.getDescription(), id, jsonRpc);
                         } else {
+                            logger.info("Error received from concord: " + id + " " + jsonRpc);
                             responseObject = errorMessage("Error received from concord", id, jsonRpc);
                         }
                     } else {

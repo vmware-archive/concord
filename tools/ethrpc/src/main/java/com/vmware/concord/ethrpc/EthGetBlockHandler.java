@@ -61,6 +61,8 @@ public class EthGetBlockHandler extends AbstractEthRpcHandler {
                 // in concord blocks are generated instantaneously we can say that
                 // "latest" = "pending"
                 String requestedBlockStr = (String) params.get(0);
+                logger.info("requestBlokcStr: " + requestedBlockStr);
+
                 long requestedBlockNumber = -1;
                 if (requestedBlockStr.equals("earliest")) {
                     requestedBlockNumber = 0;
