@@ -6,7 +6,7 @@
       {
         "label": "Configure Concord",
         "type": "shell",
-        "command": "cp /concord/config-local/concord_with_hostnames.config /concord/config-local/concord.config;/concord/config-public/find-docker-instances.sh /concord/config-local/concord.config concord-dev concord2 concord3 concord4",
+        "command": "cp /concord/config-local/concord_with_hostnames.config /concord/config-local/concord.config;mkdir -p /concord/resources;cp /concord/config-public/metrics_config.yaml /concord/resources;/concord/config-public/find-docker-instances.sh /concord/config-local/concord.config concord-dev concord2 concord3 concord4",
         "presentation": {
           "reveal": "always",
           "panel": "new"

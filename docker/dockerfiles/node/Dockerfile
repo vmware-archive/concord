@@ -51,6 +51,10 @@ RUN apt-get update \
     libyaml-cpp0.5v5 \
     && rm -rf /var/lib/apt/lists/*
 
+
+COPY --from=concord-build /opt/protobuf/lib/* /opt/protobuf/lib/
+COPY --from=concord-build /opt/grpc/lib/* /opt/grpc/lib/
+COPY --from=concord-build /usr/local/lib/libprometheus* /usr/local/lib/
 COPY --from=concord-build /usr/local/lib/libcryptopp* /usr/local/lib/
 COPY --from=concord-build /usr/local/lib/liblog4cplus* /usr/local/lib/
 COPY --from=concord-build /opt/protobuf /opt/protobuf
@@ -59,6 +63,13 @@ COPY --from=concord-build /usr/local/lib/librelic* /usr/local/lib/
 COPY --from=concord-build /usr/local/lib/librocksdb.* /usr/local/lib/
 COPY --from=concord-build /usr/local/lib/libsecp256k1* /usr/local/lib/
 COPY --from=concord-build /usr/local/lib/libevmone* /usr/local/lib/
+
+COPY --from=concord-build /usr/local/lib/libopentracing.so.1.5.0 /usr/local/lib
+RUN ln -s /usr/local/lib/libopentracing.so.1.5.0 /usr/local/lib/libopentracing.so.1
+RUN ln -s /usr/local/lib/libopentracing.so.1.5.0 /usr/local/lib/libopentracing.so
+
+COPY --from=concord-build /usr/local/lib/libthrift-0.11.0.so /usr/local/lib
+RUN ln -s /usr/local/lib/libthrift-0.11.0.so /usr/local/lib/libthrift.so
 
 WORKDIR /concord/resources
 COPY --from=concord-build /concord/build/src/concord /concord/concord
@@ -100,6 +111,8 @@ VOLUME [ "/concord/config", "/concord/rocksdbdata", "/concord/log", "/concord/tl
 WORKDIR /concord
 CMD cp /concord/config-local/concord_with_hostnames.config \
     /concord/config-local/concord.config && \
+    mkdir -p /concord/resources && \
+    cp /concord/config-public/metrics_config.yaml /concord/resources && \
     /concord/config-public/find-docker-instances.sh && \
     ${memleak_util_cmd} \
     /concord/concord -c /concord/config-local/concord.config

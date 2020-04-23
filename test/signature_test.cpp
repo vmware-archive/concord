@@ -3,11 +3,11 @@
 //
 // Tests of the transaction signing and address recovery functions.
 
+#include <nlohmann/json.hpp>
 #include "gtest/gtest.h"
 #include "utils/concord_eth_hash.hpp"
 #include "utils/concord_eth_sign.hpp"
 #include "utils/concord_utils.hpp"
-#include "utils/json.hpp"
 
 using namespace std;
 using json = nlohmann::json;

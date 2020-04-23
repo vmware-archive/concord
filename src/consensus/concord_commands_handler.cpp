@@ -61,7 +61,6 @@ int ConcordCommandsHandler::execute(uint16_t client_id, uint64_t sequence_num,
   bool read_only = flags & bftEngine::MsgFlag::READ_ONLY_FLAG;
   // bool pre_execute = flags & bftEngine::MsgFlag::PRE_PROCESS_FLAG;
   bool has_pre_executed = flags & bftEngine::MsgFlag::HAS_PRE_PROCESSED_FLAG;
-  assert(!(pre_execute && has_pre_executed));
 
   request_.Clear();
   response_.Clear();
