@@ -87,7 +87,7 @@ public class Constants {
                                        + "0x4AffeC47CB121aF0e9fd5915895996e3f8Ad3A4A,"
                                        + "0x0eDDA8153B03c40fA3A40cC07e28089DD0435464,"
                                        + "0x06e20BB182FC80AA16903a565CC4f93e2b47D423,"
-                                       + "0xfD444ECB2c868C3A851cE6389c24dbCB4Eb665fd,",
+                                       + "0xfD444ECB2c868C3A851cE6389c24dbCB4Eb665fd,"
                                        + "0xafCE1Bf29cE631B0AeE33308Ff6A8b37586b3034,"
                                        + "0x4461d0d1e80073b3490398af1252F0B925e42A8F,"
                                        + "0xe1c7a0aDE49A2B7D8788bfFb1438F722A0bE925F,"
