@@ -22,8 +22,6 @@ message ConcordRequest {
    optional TimeRequest time_request = 9;
    optional ReconfigurationRequest reconfiguration_request = 12;
    optional bytes trace_context = 13;
-   optional LatestPrunableBlockRequest latest_prunable_block_request = 14;
-   optional PruneRequest prune_request = 15;
    optional PreExecutionResult pre_execution_result = 16;
 
    // 18-2045 open for definition
@@ -44,8 +42,6 @@ message ConcordResponse {
    optional TimeResponse time_response = 9;
    optional ReconfigurationResponse reconfiguration_response = 12;
    // 13: trace_context has no response
-   optional LatestPrunableBlockResponse latest_prunable_block_response = 14;
-   optional PruneResponse prune_response = 15;
    optional PreExecutionResult pre_execution_result = 16;
 
    // 18-2045 open for definition

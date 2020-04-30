@@ -1,5 +1,10 @@
 version: '3'
 services:
+  concord-truffle:
+    image: concord-truffle:latest
+    tty: true
+    volumes:
+      - ../resources/truffle:/truffle
 
   concord1:
     image: concord-node:latest

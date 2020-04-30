@@ -45,9 +45,6 @@ ConcordCommandsHandler::ConcordCommandsHandler(
     time_ = std::unique_ptr<concord::time::TimeContract>(
         new concord::time::TimeContract(storage_, config));
   }
-
-  pruning_sm_ = std::make_unique<concord::pruning::KVBPruningSM>(
-      storage, config, node_config, time_.get());
 }
 
 int ConcordCommandsHandler::execute(uint16_t client_id, uint64_t sequence_num,
@@ -209,11 +206,6 @@ int ConcordCommandsHandler::execute(uint16_t client_id, uint64_t sequence_num,
     } else if (!time_ && request_.has_time_request()) {
       ErrorResponse *err = response_.add_error_response();
       err->set_description("Time service is disabled.");
-    }
-
-    if (request_.has_prune_request() ||
-        request_.has_latest_prunable_block_request()) {
-      pruning_sm_->Handle(request_, response_, read_only, *execute_span);
     }
   } else {
     ErrorResponse *err = response_.add_error_response();

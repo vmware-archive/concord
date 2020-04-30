@@ -13,7 +13,6 @@
 #include "KVBCInterfaces.h"
 #include "blockchain/db_interfaces.h"
 #include "concord.pb.h"
-#include "pruning/kvb_pruning_sm.hpp"
 #include "storage/concord_block_metadata.h"
 #include "time/time_contract.hpp"
 #include "time/time_reading.hpp"
@@ -47,7 +46,6 @@ class ConcordCommandsHandler
  public:
   concord::storage::blockchain::IBlocksAppender &appender_;
   std::unique_ptr<concord::time::TimeContract> time_;
-  std::unique_ptr<concord::pruning::KVBPruningSM> pruning_sm_;
 
   com::vmware::concord::ConcordRequest request_;
   com::vmware::concord::ConcordResponse response_;

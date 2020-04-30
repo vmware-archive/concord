@@ -3098,40 +3098,6 @@ void specifyConfiguration(ConcordConfiguration& config) {
                       &(auxState->optimisticCommitCryptosys));
 
   config.declareParameter(
-      "pruning_enabled",
-      "A flag to indicate if pruning is enabled for the replcia. If set to "
-      "false, LatestPrunableBlockRequest will return 0 as a latest block("
-      "indicating no blocks can be pruned) and PruneRequest will return an "
-      "error. If not specified, a value of false is assumed.");
-  config.tagParameter("pruning_enabled", publicOptionalTags);
-  config.addValidator("pruning_enabled", validateBoolean, nullptr);
-
-  config.declareParameter(
-      "pruning_num_blocks_to_keep",
-      "Minimum number of blocks to always keep in storage when pruning. If not "
-      "specified, a value of 0 is assumed. If pruning_duration_to_keep_minutes "
-      "is specified too, the more conservative pruning range will be used (the "
-      "one that prunes less blocks).");
-  config.tagParameter("pruning_num_blocks_to_keep", publicOptionalTags);
-  config.addValidator(
-      "pruning_num_blocks_to_keep", validateUInt,
-      const_cast<void*>(reinterpret_cast<const void*>(&kUInt64Limits)));
-
-  config.declareParameter(
-      "pruning_duration_to_keep_minutes",
-      "Time range (in minutes) from now to the past that determines which "
-      "blocks to keep and which are older than (now - "
-      "pruning_duration_to_keep_minutes) and can, therefore, be pruned. If not "
-      "specified, a value of 0 is assumed. If pruning_num_blocks_to_keep is "
-      "specified too, the more conservative pruning range will be used (the "
-      "one that prunes less blocks). This option requires the time service to "
-      "be enabled.");
-  config.tagParameter("pruning_duration_to_keep_minutes", publicOptionalTags);
-  config.addValidator(
-      "pruning_duration_to_keep_minutes", validateUInt,
-      const_cast<void*>(reinterpret_cast<const void*>(&kUInt32Limits)));
-
-  config.declareParameter(
       "slow_commit_cryptosys",
       "Type of cryptosystem to use to commit transactions in the SBFT slow "
       "path (threshold 2F + C + 1). This parameter should consist of two "
