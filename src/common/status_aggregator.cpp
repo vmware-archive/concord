@@ -154,7 +154,7 @@ class StatusAggregator::Impl {
         auto stPtr = static_cast<PeerConnectivityStatus *>(infoMapIt->second);
         UiPeerInfo pi;
         pi.millisSinceLastMessageThreshold = _peerFailThesholdMilli;
-        pi.address = stPtr->peerIp + ":" + to_string(stPtr->peerPort);
+        pi.address = stPtr->peerHost + ":" + to_string(stPtr->peerPort);
         pi.hostname = HOSTNAME_PREFIX + to_string(stPtr->peerId);
 
         if (StatusType::Started != stPtr->statusType) {

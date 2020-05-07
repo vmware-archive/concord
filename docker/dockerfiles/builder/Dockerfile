@@ -36,6 +36,7 @@ RUN apt-get update && apt-get -y install \
     python2.7 \
     python3-pip \
     wget \
+    libcurl4-openssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 RUN ln -s /usr/bin/clang-format-7 /usr/bin/clang-format
@@ -46,9 +47,9 @@ RUN pip3 install cpplint
 WORKDIR /
 RUN mkdir cmake &&\
     cd cmake && \
-    wget https://cmake.org/files/v3.15/cmake-3.15.4.tar.gz && \
-    tar -xzvf cmake-3.15.4.tar.gz && \
-    cd cmake-3.15.4  && \
+    wget https://cmake.org/files/v3.17/cmake-3.17.0.tar.gz && \
+    tar -xzvf cmake-3.17.0.tar.gz && \
+    cd cmake-3.17.0  && \
     ./bootstrap && \
     make -j${MAKE_PARALLELISM} && \
     make install && \
@@ -78,21 +79,27 @@ RUN cmake -DCMAKE_CXX_FLAGS="-std=c++11 -march=x86-64 -mtune=generic" .. && make
 WORKDIR /
 RUN git clone https://github.com/weidai11/cryptopp.git && \
     cd /cryptopp && \
-    git checkout CRYPTOPP_5_6_5
-## This is the reason that the concord directory must be the context
-WORKDIR /cryptopp
-COPY ./patches/cross-platform-cryptopp.patch .
-RUN git apply --whitespace=nowarn cross-platform-cryptopp.patch
-WORKDIR /cryptopp/build
-RUN cmake -DCMAKE_CXX_FLAGS="-march=x86-64 -mtune=generic" .. && make -j${MAKE_PARALLELISM} && make install && cd / && rm -rf /cryptopp
-
+    git checkout CRYPTOPP_8_2_0 && \
+    CXX_FLAGS="-march=x86-64 -mtune=generic" make -j4 && \
+    make install && \
+    cd / && \
+    rm -r cryptopp
+    
 WORKDIR /
-RUN git clone https://github.com/log4cplus/log4cplus.git && \
+RUN git clone https://github.com/log4cplus/log4cplus.git --recursive && \
     cd /log4cplus && \
-    git checkout REL_1_2_1
+    git checkout REL_2_0_4 && \
+    autoconf && \
+    ./configure CXXFLAGS="--std=c++11 -march=x86-64 -mtune=generic" \
+                --enable-static
+# Combining the RUN above with the RUN below causes the log4cplus
+# build to complain about missing aclocal-1.14.
 WORKDIR /log4cplus
-RUN autoconf && ./configure CXXFLAGS="--std=c++11 -march=x86-64 -mtune=generic" && make -j${MAKE_PARALLELISM} && make install && cd / && rm -rf /log4cplus
-
+RUN make -j4 && \
+    make install && \
+    cd / && \
+    rm -r log4cplus
+    
 WORKDIR /
 RUN git clone https://github.com/relic-toolkit/relic && \
     cd /relic && \
@@ -144,8 +151,124 @@ RUN git clone https://github.com/ethereum/evmone.git && \
     mkdir build && \
     git submodule update --init --recursive
 WORKDIR /evmone/build
+
 RUN cmake -DBUILD_SHARED_LIBS=ON -DCMAKE_CXX_FLAGS="-march=x86-64 -mtune=generic" .. && \
 cmake --build . --config RelWithDebInfo -- -j${MAKE_PARALLELISM} && \
 make install
+
+
+# thrift is a jaeger dependency
+WORKDIR /
+RUN wget http://apache.mirrors.hoobly.com/thrift/0.11.0/thrift-0.11.0.tar.gz && \
+    tar xzf thrift-0.11.0.tar.gz && \
+    cd thrift-0.11.0 && \
+    ./configure && \
+    make -j4 && \
+    make install && \
+    cd .. && \
+    rm -r thrift-0.11.0
+
+# opentracing is a jaeger dependency
+WORKDIR /
+RUN git clone https://github.com/opentracing/opentracing-cpp && \
+    cd opentracing-cpp && \
+    git checkout v1.5.0 && \
+    mkdir build && \
+    cd build && \
+    cmake .. && \
+    make -j4 && \
+    make install && \
+    cd ../.. && \
+    rm -r opentracing-cpp
+
+# json is a jaeger dependency (and also a concord dependency, and the versions must match)
+WORKDIR /
+RUN git clone https://github.com/nlohmann/json && \
+    cd json && \
+    git checkout v3.7.3 && \
+    mkdir build && \
+    cd build && \
+    cmake .. && \
+    make -j4 && \
+    make install && \
+    cd ../.. && \
+    rm -r json
+
+# Jaeger build notes:
+#
+# * Jaeger wants to use the Hunter dependency manager, but this
+#   ignores the dependencies (like Boost) we have already
+#   installed. So, this build the deps manually for now.
+#
+# * By the same token, concord needs a Findthrift.cmake, so we copy
+#   Jaeger's to the common cmake location.
+WORKDIR /
+RUN git clone https://github.com/jaegertracing/jaeger-client-cpp && \
+    cd jaeger-client-cpp && \
+    git checkout v0.5.0 && \
+    mkdir build && \
+    cd build && \
+    cmake -DHUNTER_ENABLED=NO -DBUILD_TESTING=NO -DBUILD_SHARED_LIBS=NO -DJAEGERTRACING_BUILD_EXAMPLES=NO .. && \
+    make -j4 && \
+    make install && \
+    cp ../cmake/Findthrift.cmake /usr/local/share/cmake-3.17/Modules/ && \
+    cd ../.. && \
+    rm -r jaeger-client-cpp
+
+# Jaeger really wants to find BoostConfig.cmake, not
+# FindBoost.cmake. But, this wasn't introduced until boost 1.70. This
+# doesn't matter anyway, because the jaegertracing.cmake finds
+# FindBoost.cmake first anyway. The following sed just removes the
+# search for BoostConfig.cmake.
+RUN sed -i '/boost_components/d' /usr/local/lib/cmake/jaegertracing/jaegertracingConfig.cmake
+
+ENV LD_LIBRARY_PATH /usr/local/lib
+
+# Install Prometheus-cpp
+WORKDIR /
+RUN git clone https://github.com/jupp0r/prometheus-cpp.git && \
+    cd prometheus-cpp && \
+    git checkout v0.8.0 && \
+    git submodule init && \
+    git submodule update && \
+    mkdir _build && \
+    cd _build && \
+    cmake -DBUILD_SHARED_LIBS=ON .. && \
+    make && \
+    make install && \
+    cd ../.. && \
+    rm -r prometheus-cpp
+
+# Install GRPC, needed for thin-client
+WORKDIR /
+RUN git clone https://github.com/grpc/grpc && \
+    cd /grpc && \
+    git checkout v1.17.x && \
+    git submodule update --init && \
+    cd /grpc/third_party/protobuf && \
+    git checkout 3.6.x && \
+    cd /grpc/third_party/protobuf && \
+    ./autogen.sh && \
+    ./configure --prefix=/opt/protobuf && \
+    make -j4 && \
+    make install && \
+    cd /grpc && \
+    make -j4 PROTOC=/opt/protobuf/bin/protoc && \
+    make prefix=/opt/grpc install && \
+    cd / && \
+    rm -r grpc
+
+# install conan, required by concord-bft
+RUN pip3 install conan
+
+# needed by conan, which invoked clang without version
+RUN update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-7 100 \
+    && update-alternatives --install /usr/bin/clang clang /usr/bin/clang-7 100 \
+    && update-alternatives --install /usr/bin/cc cc /usr/bin/clang-7 100 \
+    && update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++-7 100 \
+    && update-alternatives --install /usr/bin/cpp cpp /usr/bin/clang++-7 100
+
+# needed to avoid gtest thread error
+RUN make -C /googletest/_build install
 
 ENV LD_LIBRARY_PATH /usr/local/lib

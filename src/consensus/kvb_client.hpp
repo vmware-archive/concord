@@ -7,16 +7,16 @@
 #define CONCORD_CONSENSUS_KVB_CLIENT_HPP_
 
 #include <log4cplus/loggingmacros.h>
+#include <opentracing/span.h>
 #include <chrono>
 #include <condition_variable>
 #include <mutex>
 #include <queue>
 #include <vector>
 
-#include "client_imp.h"
-#include "client_interface.h"
+#include "ClientImp.h"
+#include "KVBCInterfaces.h"
 #include "concord.pb.h"
-#include "consensus/timing_stat.h"
 #include "time/time_pusher.hpp"
 
 namespace concord {
@@ -28,51 +28,29 @@ class TimePusher;
 }  // namespace time
 
 namespace consensus {
-
+using concord::kvbc::IClient;
 class KVBClient {
  private:
-  IClient *client_;
-  std::chrono::milliseconds timeout_;
+  std::unique_ptr<IClient> client_;
   std::shared_ptr<concord::time::TimePusher> timePusher_;
   log4cplus::Logger logger_;
   static constexpr size_t OUT_BUFFER_SIZE = 512000;
   char m_outBuffer[OUT_BUFFER_SIZE];
 
-  bool timing_enabled_;
-  concordMetrics::Component metrics_;
-  TimingStat timing_bft_;
-  std::chrono::steady_clock::duration timing_log_period_;
-  std::chrono::steady_clock::time_point timing_log_last_;
-
  public:
-  KVBClient(IClient *client, std::chrono::milliseconds timeout,
-            std::shared_ptr<concord::time::TimePusher> timePusher,
-            bool timing_enabled,
-            std::chrono::steady_clock::duration timing_log_period,
-            std::string timing_id)
+  KVBClient(IClient *client,
+            std::shared_ptr<concord::time::TimePusher> timePusher)
       : client_(client),
-        timeout_(timeout),
         timePusher_(timePusher),
-        logger_(log4cplus::Logger::getInstance("com.vmware.concord")),
-        timing_enabled_(timing_enabled),
-        metrics_{concordMetrics::Component(
-            "client_" + timing_id,
-            std::make_shared<concordMetrics::Aggregator>())},
-        timing_bft_("bft_time", timing_enabled, metrics_),
-        timing_log_period_(timing_log_period),
-        timing_log_last_(std::chrono::steady_clock::now()) {}
+        logger_(log4cplus::Logger::getInstance("com.vmware.concord")) {}
 
-  ~KVBClient() {
-    client_->stop();
-    releaseClient(client_);
-  }
+  ~KVBClient() { client_->stop(); }
 
   bool send_request_sync(com::vmware::concord::ConcordRequest &req,
-                         bool isReadOnly,
-                         com::vmware::concord::ConcordResponse &resp);
-
- private:
-  void log_timing();
+                         bool isReadOnly, std::chrono::milliseconds timeout,
+                         opentracing::Span &parent_span,
+                         com::vmware::concord::ConcordResponse &resp,
+                         const std::string &correlation_id = "");
 };
 
 class KVBClientPool {
@@ -85,6 +63,10 @@ class KVBClientPool {
 
   // Clients that are available for use (i.e. not already in use).
   std::queue<KVBClient *> clients_;
+
+  // How long to wait for a client, and also how long to wait for the claimed
+  // client to respond.
+  std::chrono::milliseconds timeout_;
 
   // Mutex to grab before modifying clients_.
   std::mutex clients_mutex_;
@@ -111,12 +93,20 @@ class KVBClientPool {
   // point to should be a valid TimePusher if the time service is enabled
   // and should be a null pointer if the time service is disabled.
   KVBClientPool(std::vector<KVBClient *> &clients,
+                std::chrono::milliseconds timeout,
                 std::shared_ptr<concord::time::TimePusher> time_pusher);
   ~KVBClientPool();
 
   bool send_request_sync(com::vmware::concord::ConcordRequest &req,
-                         bool isReadOnly,
-                         com::vmware::concord::ConcordResponse &resp);
+                         bool isReadOnly, opentracing::Span &parent_span,
+                         com::vmware::concord::ConcordResponse &resp,
+                         const std::string &correlation_id = "");
+
+  bool send_request_sync(com::vmware::concord::ConcordRequest &req,
+                         bool isReadOnly, std::chrono::milliseconds timeout,
+                         opentracing::Span &parent_span,
+                         com::vmware::concord::ConcordResponse &resp,
+                         const std::string &correlation_id = "");
 
   // Reconfigure the time period for the TimePusher (if any) managed by this
   // KVBClientPool and shared by its KVBClients. Calls to this function will be

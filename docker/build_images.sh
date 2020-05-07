@@ -11,7 +11,7 @@ echo "Building docker images..."
 # docker build --rm -f "${DIR}/dockerfiles/builder/Dockerfile" -t vmwconcord/concord-builder:0.1 ${DIR}/..
 
 echo "Pulling concord-builder..."
-docker pull vmwconcord/concord-builder:0.1
+docker pull vmwconcord/concord-builder:0.2
 
 echo "Building concord-node..."
 docker build --rm -f "${DIR}/dockerfiles/node/Dockerfile" -t concord-node:latest ${DIR}/..

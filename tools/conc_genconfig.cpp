@@ -7,6 +7,14 @@
 // Concord node in the requested cluster containing the configuration for each
 // replica (the --help option includes details on how to give the filename for
 // the input and output to this utility).
+//
+// Concord configuration generation utility.
+// This executable takes a YAML input file containing at least fundamental
+// cluster size parameters and network configurations and optionally any
+// non-default elections for optional parameters and outputs one YAML file per
+// Concord node in the requested cluster containing the configuration for each
+// replica (the --help option includes details on how to give the filename for
+// the input and output to this utility).
 
 #include <iostream>
 
@@ -148,7 +156,7 @@ int main(int argc, char** argv) {
   if (config.loadAllDefaults(false, false) !=
       ConcordConfiguration::ParameterStatus::VALID) {
     LOG4CPLUS_FATAL(concGenconfigLogger,
-                    "Failed to load default values for configuraiton "
+                    "Failed to load default values for configuration "
                     "parameters not included in input.");
     return -1;
   }

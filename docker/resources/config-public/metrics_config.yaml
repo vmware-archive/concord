@@ -1,0 +1,581 @@
+concord:
+  - name: "concord_command_handler_operation_counters_total"
+    type: "counter"
+    exposed: "on"
+
+concordbft:
+  - name: "view"
+    component: "replica"
+    type: "gauge"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace : "DEBUG"
+
+  - name: "lastStableSeqNum"
+    component: "replica"
+    type: "gauge"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "lastExecutedSeqNum"
+    component: "replica"
+    type: "gauge"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "lastAgreedView"
+    component: "replica"
+    type: "gauge"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "firstCommitPath"
+    component: "replica"
+    type: "status"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "slowPathCount"
+    component: "replica"
+    type : "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "receivedInternalMsgs"
+    component: "replica"
+    type : "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "receivedClientRequestMsgs"
+    component: "replica"
+    type : "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "receivedPrePrepareMsgs"
+    component: "replica"
+    type : "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "receivedStartSlowCommitMsgs"
+    component: "replica"
+    type : "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "receivedPartialCommitProofMsgs"
+    component: "replica"
+    type : "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "receivedFullCommitProofMsgs"
+    component: "replica"
+    type : "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "receivedPreparePartialMsgs"
+    component: "replica"
+    type : "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "receivedCommitPartialMsgs"
+    component: "replica"
+    type: "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "receivedPrepareFullMsgs"
+    component: "replica"
+    type: "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "receivedCommitFullMsgs"
+    component: "replica"
+    type: "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "receivedCheckpointMsgs"
+    component: "replica"
+    type: "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "receivedReplicaStatusMsgs"
+    component: "replica"
+    type: "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "receivedViewChangeMsgs"
+    component: "replica"
+    type: "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "receivedNewViewMsgs"
+    component: "replica"
+    type: "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "receivedReqMissingDataMsgs"
+    component: "replica"
+    type: "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "receivedSimpleAckMsgs"
+    component: "replica"
+    type: "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "receivedStateTransferMsgs"
+    component: "replica"
+    type: "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "fetching_state"
+    component: "bc_state_transfer"
+    type: "status"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "pedantic_checks_enabled"
+    component: "bc_state_transfer"
+    type: "status"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "preferred_replicas"
+    component: "bc_state_transfer"
+    type: "status"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "current_source_replica"
+    component: "bc_state_transfer"
+    type: "gauge"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "checkpoint_being_fetched"
+    component: "bc_state_transfer"
+    type: "gauge"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "last_stored_checkpoint"
+    component: "bc_state_transfer"
+    type: "gauge"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "number_of_reserved_pages"
+    component: "bc_state_transfer"
+    type: "gauge"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "size_of_reserved_page"
+    component: "bc_state_transfer"
+    type: "gauge"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "last_msg_seq_num"
+    component: "bc_state_transfer"
+    type: "gauge"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "next_required_block_"
+    component: "bc_state_transfer"
+    type: "gauge"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "num_pending_item_data_msgs_"
+    component: "bc_state_transfer"
+    type: "gauge"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "total_size_of_pending_item_data_msgs"
+    component: "bc_state_transfer"
+    type: "gauge"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "last_block_"
+    component: "bc_state_transfer"
+    type: "gauge"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "last_reachable_block"
+    component: "bc_state_transfer"
+    type: "gauge"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "sent_ask_for_checkpoint_summaries_msg"
+    component: "bc_state_transfer"
+    type: "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "sent_checkpoint_summary_msg"
+    component: "bc_state_transfer"
+    type: "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "sent_fetch_blocks_msg"
+    component: "bc_state_transfer"
+    type: "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "sent_fetch_res_pages_msg"
+    component: "bc_state_transfer"
+    type: "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "sent_reject_fetch_msg"
+    component: "bc_state_transfer"
+    type: "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "sent_item_data_msg"
+    component: "bc_state_transfer"
+    type: "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "received_ask_for_checkpoint_summaries_msg"
+    component: "bc_state_transfer"
+    type: "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "received_checkpoint_summary_msg"
+    component: "bc_state_transfer"
+    type: "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "received_fetch_blocks_msg"
+    component: "bc_state_transfer"
+    type: "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "received_fetch_res_pages_msg"
+    component: "bc_state_transfer"
+    type: "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "received_reject_fetching_msg"
+    component: "bc_state_transfer"
+    type: "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "received_item_data_msg"
+    component: "bc_state_transfer"
+    type: "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "received_illegal_msg_"
+    component: "bc_state_transfer"
+    type: "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "invalid_ask_for_checkpoint_summaries_msg"
+    component: "bc_state_transfer"
+    type: "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "irrelevant_ask_for_checkpoint_summaries_msg"
+    component: "bc_state_transfer"
+    type: "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "invalid_checkpoint_summary_msg"
+    component: "bc_state_transfer"
+    type: "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "irrelevant_checkpoint_summary_msg"
+    component: "bc_state_transfer"
+    type: "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "invalid_fetch_blocks_msg"
+    component: "bc_state_transfer"
+    type: "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "irrelevant_fetch_blocks_msg"
+    component: "bc_state_transfer"
+    type: "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "invalid_fetch_res_pages_msg"
+    component: "bc_state_transfer"
+    type: "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "irrelevant_fetch_res_pages_msg"
+    component: "bc_state_transfer"
+    type: "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "invalid_reject_fetching_msg"
+    component: "bc_state_transfer"
+    type: "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "irrelevant_reject_fetching_msg"
+    component: "bc_state_transfer"
+    type: "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "invalid_item_data_msg"
+    component: "bc_state_transfer"
+    type: "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "irrelevant_item_data_msg"
+    component: "bc_state_transfer"
+    type: "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "create_checkpoint"
+    component: "bc_state_transfer"
+    type: "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "mark_checkpoint_as_stable"
+    component: "bc_state_transfer"
+    type: "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "load_reserved_page"
+    component: "bc_state_transfer"
+    type: "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "load_reserved_page_from_pending"
+    component: "bc_state_transfer"
+    type: "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "load_reserved_page_from_checkpoint"
+    component: "bc_state_transfer"
+    type: "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "save_reserved_page"
+    component: "bc_state_transfer"
+    type: "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "zero_reserved_page"
+    component: "bc_state_transfer"
+    type: "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "start_collecting_state"
+    component: "bc_state_transfer"
+    type: "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "on_timer"
+    component: "bc_state_transfer"
+    type: "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"
+
+  - name: "on_transferring_complete"
+    component: "bc_state_transfer"
+    type: "counter"
+    exposed: "on"
+    description: "concord bft metrics"
+    labels:
+      - trace: "DEBUG"

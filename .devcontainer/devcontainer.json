@@ -58,5 +58,5 @@
 	// "postCreateCommand": "apt-get update && apt-get install -y git",
 
 	// Add the IDs of extensions you want installed when the container is created in the array below.
-	"extensions": [ "vector-of-bool.cmake-tools", "ms-vscode.cpptools"]
+	"extensions": [ "ms-vscode.cmake-tools", "ms-vscode.cpptools"]
 }

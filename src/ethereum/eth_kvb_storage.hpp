@@ -30,17 +30,6 @@ class EthKvbStorage {
   std::vector<concord::common::EthTransaction> pending_transactions;
   log4cplus::Logger logger;
 
-  /* Value of "type" byte, at the start of each key. */
-  const uint8_t TYPE_BLOCK = 0x01;
-  const uint8_t TYPE_TRANSACTION = 0x02;
-  const uint8_t TYPE_BALANCE = 0x03;
-  const uint8_t TYPE_CODE = 0x04;
-  const uint8_t TYPE_STORAGE = 0x05;
-  const uint8_t TYPE_NONCE = 0x06;
-
-  // 0x20 used by concord::time::TimeContract
-  // 0x21 used by concord::storage::ConcordMetadataStorage
-
   concordUtils::Sliver kvb_key(uint8_t type, const uint8_t *bytes,
                                size_t length) const;
 

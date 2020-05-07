@@ -1,5 +1,6 @@
 // Copyright (c) 2018-2019 VMware, Inc. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
+//
 // Read peers from Concord directly.
 
 #include <inttypes.h>

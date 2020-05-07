@@ -21,8 +21,10 @@ message ConcordRequest {
    optional LogsRequest logs_request = 8;
    optional TimeRequest time_request = 9;
    optional ReconfigurationRequest reconfiguration_request = 12;
+   optional bytes trace_context = 13;
+   optional PreExecutionResult pre_execution_result = 16;
 
-   // 13-2045 open for definition
+   // 18-2045 open for definition
    // Likely: metrics/stats, non-eth blockchain, other admin
 
    optional TestRequest test_request = 2046;
@@ -39,8 +41,10 @@ message ConcordResponse {
    optional LogsResponse logs_response = 8;
    optional TimeResponse time_response = 9;
    optional ReconfigurationResponse reconfiguration_response = 12;
+   // 13: trace_context has no response
+   optional PreExecutionResult pre_execution_result = 16;
 
-   // 13-2045 open for definition
+   // 18-2045 open for definition
    optional TestResponse test_response = 2046;
    repeated ErrorResponse error_response = 2047;
 }
@@ -81,6 +85,14 @@ message BlockResponse {
    optional int64 timestamp = 7;
    optional int64 gas_limit = 8;
    optional int64 gas_used = 9;
+}
+
+message SkvbcRequest {
+   optional bytes request_content = 1;
+}
+
+message SkvbcResponse {
+   optional bytes response_content = 1;
 }
 
 message ErrorResponse {
@@ -131,6 +143,48 @@ message EthResponse {
    // filter_response (5) is removed
 }
 
+message HlfRequest {
+  enum HlfMethod {
+    INSTALL = 1;
+    UPGRADE = 2;
+    INVOKE = 3;
+    QUERY = 4;
+  }
+
+  optional HlfMethod method = 1;
+  optional string chain_id = 2;
+  optional string chaincode_name = 3;
+  optional string input = 4;
+  optional string version = 5;
+  optional bytes chaincode_source_bytes = 6;
+  // 'path' indicates the path to store chaincode
+  // if method was INSTALL or UPGRADE
+  optional string path = 7;
+  // type indicates the chaincode type, could be
+  // go, js and java
+  optional string type = 8;
+}
+
+message HlfResponse {
+  // transaction id
+  optional string id = 1;
+  optional string data = 2;
+  optional int32 status = 3;
+}
+
+message LatestPrunableBlock {
+   optional uint64 replica = 1;
+   optional uint64 block_id = 2;
+   // signature of prior fields by 'replica'
+   optional bytes signature = 3;
+}
+
+message LatestPrunableBlockRequest {}
+
+message LatestPrunableBlockResponse {
+   repeated LatestPrunableBlock block = 1;
+}
+
 message LogResponse {
    optional bytes contract_address = 1;
    repeated bytes topic = 2;
@@ -176,6 +230,26 @@ message PeerResponse {
    repeated Peer peer = 1;
 }
 
+message PreExecutionResult {
+   optional int64 read_set_version = 1;
+   optional ReadSet read_set = 2;
+   optional WriteSet write_set = 3;
+   optional string request_correlation_id = 4;
+}
+
+message ReadSet {
+   repeated bytes keys = 1;
+}
+
+message WriteSet {
+   repeated KeyValuePair kv_writes = 1;
+}
+
+message KeyValuePair {
+   required bytes key = 1;
+   required bytes value = 2;
+}
+
 message ProtocolRequest {
    optional int32 client_version = 1;
    // TODO: probably some auth in here too
@@ -184,6 +258,19 @@ message ProtocolRequest {
 message ProtocolResponse {
    optional int32 server_version = 1;
    optional int64 net_version = 2;
+}
+
+message PruneRequest {
+   optional uint64 sender = 1;
+   // N out of N latest prunable block replies signed by replicas
+   repeated LatestPrunableBlock latest_prunable_block = 2;
+   // signature of prior fields by 'sender'
+   optional bytes signature = 3;
+}
+
+message PruneResponse {
+   optional bool ok = 1;
+   optional string error_msg = 2;
 }
 
 message ReconfigureTimePusherPeriodRequest {

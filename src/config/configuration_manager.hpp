@@ -28,10 +28,13 @@
 #ifndef CONFIG_CONFIGURATION_MANAGER_HPP
 #define CONFIG_CONFIGURATION_MANAGER_HPP
 
+#include "stdint.h"
+
 #include <fstream>
 #include <iostream>
 #include <map>
 #include <unordered_set>
+#include <utility>
 
 #include <cryptopp/dll.h>
 #include <log4cplus/configurator.h>
@@ -1339,14 +1342,11 @@ class YAMLConfigurationOutput {
 // cryptographic state.
 struct ConcordPrimaryConfigurationAuxiliaryState
     : public ConfigurationAuxiliaryState {
-  std::unique_ptr<Cryptosystem> executionCryptosys;
   std::unique_ptr<Cryptosystem> slowCommitCryptosys;
   std::unique_ptr<Cryptosystem> commitCryptosys;
   std::unique_ptr<Cryptosystem> optimisticCommitCryptosys;
 
   std::vector<std::pair<std::string, std::string>> replicaRSAKeys;
-  std::vector<std::vector<std::pair<std::string, std::string>>>
-      clientProxyRSAKeys;
 
   ConcordPrimaryConfigurationAuxiliaryState();
   virtual ~ConcordPrimaryConfigurationAuxiliaryState();
@@ -1518,10 +1518,63 @@ void loadSBFTCryptosystems(ConcordConfiguration& config);
 void outputPrincipalLocationsMappingJSON(ConcordConfiguration& config,
                                          std::ostream& output);
 
+// Declaration and implementation of various functions used by
+// specifyConfiguration to specify how to size scopes and validatate and
+// generate parameters. Pointers to these functions are given to the
+// ConcordConfiguration object specifyConfiguration builds so that the
+// configuration system can call them at the appropriate time (for example,
+// parameter validators are called automatically when parameters are loaded).
+// Computes the total number of Concord nodes. Note we currently assume there is
+// one Concord node per SBFT replica, and the SBFT algorithm specifies that the
+// cluster size in terms of its F and C parameters is (3F + 2C + 1) replicas.
+ConcordConfiguration::ParameterStatus sizeNodes(
+    const ConcordConfiguration& config, const ConfigurationPath& path,
+    size_t* output, void* state);
+
+// Computes the number of SBFT replicas per Concord node. Note that, at the time
+// of this writing, we assume there is exactly one SBFT replica per Concord
+// node.
+ConcordConfiguration::ParameterStatus sizeReplicas(
+    const ConcordConfiguration& config, const ConfigurationPath& path,
+    size_t* output, void* state);
+
+// Validate an unsigned integer.
+ConcordConfiguration::ParameterStatus validateUInt(
+    const std::string& value, const ConcordConfiguration& config,
+    const ConfigurationPath& path, std::string* failureMessage, void* state);
+
+inline const std::pair<unsigned long long, unsigned long long>
+    kPositiveIntLimits({1, INT_MAX});
+inline const std::pair<unsigned long long, unsigned long long>
+    kPositiveUInt16Limits({1, UINT16_MAX});
+inline const std::pair<unsigned long long, unsigned long long>
+    kPositiveUInt64Limits({1, UINT64_MAX});
+inline const std::pair<unsigned long long, unsigned long long>
+    kPositiveULongLongLimits({1, ULLONG_MAX});
+inline const std::pair<unsigned long long, unsigned long long> kUInt16Limits(
+    {0, UINT16_MAX});
+inline const std::pair<unsigned long long, unsigned long long> kUInt32Limits(
+    {0, UINT32_MAX});
+inline const std::pair<unsigned long long, unsigned long long> kUInt64Limits(
+    {0, UINT64_MAX});
+inline const std::pair<long long, long long> kInt32Limits({INT32_MIN,
+                                                           INT32_MAX});
+
+// We enforce a minimum size on communication buffers to ensure at least
+// minimal error responses can be passed through them.
+inline const std::pair<unsigned long long, unsigned long long>
+    kConcordBFTCommunicationBufferSizeLimits({512, UINT32_MAX});
+
 }  // namespace config
 }  // namespace concord
 
-boost::program_options::variables_map initialize_config(
-    concord::config::ConcordConfiguration& config, int argc, char** argv);
+// Parse Concord's command line options (storing them to opts_out) and load its
+// configuration from the configuration file specified by the command line to
+// config_out. Returns true if Concord's configuration was loaded successfully,
+// or if the command line invokes Concord in a recognized way not requiring a
+// configuration (ex: concord --help), and returns false otherwise.
+bool initialize_config(int agrc, char** argv,
+                       concord::config::ConcordConfiguration& config_out,
+                       boost::program_options::variables_map& opts_out);
 
 #endif  // CONFIG_CONFIGURATION_MANAGER_HPP

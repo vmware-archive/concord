@@ -18,6 +18,7 @@ using std::vector;
 using concord::config::ConcordConfiguration;
 using concord::config::ConfigurationPath;
 using concord::config::ParameterSelection;
+using concordUtils::BlockId;
 using concordUtils::Sliver;
 using concordUtils::Status;
 using google::protobuf::Timestamp;
@@ -65,6 +66,25 @@ Timestamp TimeContract::GetTime() {
   LoadLatestSamples();
 
   return SummarizeTime();
+}
+
+Timestamp TimeContract::GetSummarizedTimeAtBlock(BlockId id) const {
+  BlockId out_block_id{};
+  Sliver raw_time;
+  const auto read_status =
+      storage_.get(id, summarized_time_key_, raw_time, out_block_id);
+  if (!read_status.isOK() || raw_time.empty()) {
+    LOG4CPLUS_ERROR(logger_, "Failed to read summarized time from storage");
+    throw TimeException{"Failed to read summarized time from storage"};
+  }
+
+  Timestamp time;
+  if (!time.ParseFromArray(raw_time.data(), raw_time.length())) {
+    LOG4CPLUS_ERROR(logger_, "Failed to parse summarized time storage");
+    throw TimeException{"Failed to parse summarized time storage"};
+  }
+
+  return time;
 }
 
 // Combine samples into a single defintion of "now". Samples must have been
@@ -140,7 +160,7 @@ void TimeContract::LoadLatestSamples() {
   samples_ = new unordered_map<string, SampleBody>();
 
   Sliver raw_time;
-  Status read_status = storage_.get(time_key_, raw_time);
+  Status read_status = storage_.get(time_samples_key_, raw_time);
 
   if (read_status.isOK() && raw_time.length() > 0) {
     com::vmware::concord::kvb::Time time_storage;
@@ -254,12 +274,21 @@ pair<Sliver, Sliver> TimeContract::Serialize() {
   }
 
   size_t storage_size = proto.ByteSize();
-  Sliver time_storage(new uint8_t[storage_size], storage_size);
-  proto.SerializeToArray(time_storage.data(), storage_size);
+  Sliver time_storage(new char[storage_size], storage_size);
+  proto.SerializeToArray(const_cast<char *>(time_storage.data()), storage_size);
 
   changed_ = false;
 
-  return pair<Sliver, Sliver>(time_key_, time_storage);
+  return pair<Sliver, Sliver>(time_samples_key_, time_storage);
+}
+
+pair<Sliver, Sliver> TimeContract::SerializeSummarizedTime() {
+  const auto current_time = GetTime();
+  const auto storage_size = current_time.ByteSize();
+  Sliver storage(new char[storage_size], storage_size);
+  current_time.SerializeToArray(const_cast<char *>(storage.data()),
+                                storage_size);
+  return std::make_pair(summarized_time_key_, storage);
 }
 
 }  // namespace time

@@ -9,12 +9,12 @@
 #include <log4cplus/loggingmacros.h>
 #include <cstdlib>
 #include <map>
+#include <nlohmann/json.hpp>
 #include <stdexcept>
 #include <vector>
 #include "common/concord_types.hpp"
 #include "evmc/evmc.h"
 #include "utils/concord_utils.hpp"
-#include "utils/json.hpp"
 
 namespace concord {
 namespace ethereum {

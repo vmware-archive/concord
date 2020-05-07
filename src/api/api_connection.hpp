@@ -13,6 +13,7 @@
 
 #include "common/status_aggregator.hpp"
 #include "concord.pb.h"
+#include "config/configuration_manager.hpp"
 #include "consensus/kvb_client.hpp"
 
 namespace concord {
@@ -29,11 +30,12 @@ class ApiConnection : public boost::enable_shared_from_this<ApiConnection> {
 
   typedef boost::shared_ptr<ApiConnection> pointer;
 
-  static pointer create(boost::asio::io_service &io_service,
-                        ConnectionManager &connManager,
-                        concord::consensus::KVBClientPool &clientPool,
-                        concord::common::StatusAggregator &sag,
-                        uint64_t gasLimit, uint64_t chainID, bool ethEnabled);
+  static pointer create(
+      boost::asio::io_service &io_service, ConnectionManager &connManager,
+      concord::consensus::KVBClientPool &clientPool,
+      concord::common::StatusAggregator &sag, uint64_t gasLimit,
+      uint64_t chainID, bool ethEnabled,
+      const concord::config::ConcordConfiguration &nodeConfig);
 
   boost::asio::ip::tcp::socket &socket();
 
@@ -88,7 +90,8 @@ class ApiConnection : public boost::enable_shared_from_this<ApiConnection> {
                 ConnectionManager &connManager,
                 concord::consensus::KVBClientPool &clientPool,
                 concord::common::StatusAggregator &sag, uint64_t gasLimit,
-                uint64_t chainID, bool ethEnabled);
+                uint64_t chainID, bool ethEnabled,
+                const concord::config::ConcordConfiguration &nodeConfig);
 
   uint16_t get_message_length(const char *buffer);
 
@@ -122,6 +125,9 @@ class ApiConnection : public boost::enable_shared_from_this<ApiConnection> {
    * only one response is built at a time.
    */
   com::vmware::concord::ConcordResponse concordResponse_;
+
+  /* The active tracing span. */
+  std::unique_ptr<opentracing::Span> span_;
 
   /* Logger. */
   log4cplus::Logger logger_;

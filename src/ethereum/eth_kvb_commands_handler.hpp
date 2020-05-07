@@ -1,5 +1,6 @@
 // Copyright (c) 2018-2019 VMware, Inc. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
+//
 // KVBlockchain replica command handler interface for EVM.
 
 #ifndef ETHEREUM_KVB_COMMANDS_HANDLER_HPP_
@@ -12,7 +13,6 @@
 #include "concord.pb.h"
 #include "config/configuration_manager.hpp"
 #include "consensus/concord_commands_handler.hpp"
-#include "consensus/timing_stat.h"
 #include "ethereum/concord_evm.hpp"
 #include "time/time_contract.hpp"
 #include "utils/concord_eth_sign.hpp"
@@ -28,9 +28,6 @@ class EthKvbCommandsHandler
   concord::utils::EthSign &verifier_;
   const concord::config::ConcordConfiguration &nodeConfiguration;
   const uint64_t gas_limit_;
-  concord::consensus::TimingStat timing_evmrun_;
-  concord::consensus::TimingStat timing_evmcreate_;
-  concord::consensus::TimingStat timing_evmwrite_;
 
  public:
   EthKvbCommandsHandler(
@@ -39,15 +36,16 @@ class EthKvbCommandsHandler
       const concord::config::ConcordConfiguration &nodeConfig,
       const concord::storage::blockchain::ILocalKeyValueStorageReadOnly
           &storage,
-      concord::storage::blockchain::IBlocksAppender &appender);
+      concord::storage::blockchain::IBlocksAppender &appender,
+      std::shared_ptr<concord::utils::PrometheusRegistry> prometheus_registry);
   ~EthKvbCommandsHandler();
 
   // concord::consensus::ConcordStateMachine
   bool Execute(const com::vmware::concord::ConcordRequest &request,
-               bool read_only, concord::time::TimeContract *time,
+               uint8_t flags, concord::time::TimeContract *time,
+               opentracing::Span &parent_span,
                com::vmware::concord::ConcordResponse &response) override;
   void WriteEmptyBlock(concord::time::TimeContract *time) override;
-  void ClearStats() override;
 
  private:
   // Handlers
@@ -74,18 +72,22 @@ class EthKvbCommandsHandler
   bool handle_eth_request(const com::vmware::concord::ConcordRequest &concreq,
                           EthKvbStorage &kvb_storage,
                           concord::time::TimeContract *time,
+                          opentracing::Span &parent_span,
                           com::vmware::concord::ConcordResponse &concresp);
   bool handle_eth_sendTransaction(
       const com::vmware::concord::ConcordRequest &concreq,
       EthKvbStorage &kvbStorage, concord::time::TimeContract *time,
+      opentracing::Span &parent_span,
       com::vmware::concord::ConcordResponse &concresp);
   bool handle_eth_request_read_only(
       const com::vmware::concord::ConcordRequest &concreq,
       EthKvbStorage &kvbStorage, concord::time::TimeContract *time,
+      opentracing::Span &parent_span,
       com::vmware::concord::ConcordResponse &concresp);
   bool handle_eth_callContract(
       const com::vmware::concord::ConcordRequest &concreq,
       EthKvbStorage &kvbStorage, concord::time::TimeContract *time,
+      opentracing::Span &parent_span,
       com::vmware::concord::ConcordResponse &concresp);
   bool handle_eth_blockNumber(
       const com::vmware::concord::ConcordRequest &concreq,
@@ -122,6 +124,7 @@ class EthKvbCommandsHandler
 
   evmc_result run_evm(const com::vmware::concord::EthRequest &request,
                       EthKvbStorage &kvbStorage, uint64_t timestamp,
+                      opentracing::Span &parent_span,
                       evmc_uint256be &txhash /* OUT */);
 
   evmc_uint256be record_transaction(

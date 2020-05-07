@@ -29,32 +29,33 @@
 // Storage layouts:
 //
 // * Block
-//   - Key: TYPE_BLOCK+[block hash (32 bytes)]
+//   - Key: kKvbKeyEthBlock+[block hash (32 bytes)]
 //   - Value: com::vmware::concord::kvb::Block protobuf
 //   - Notes: Do not confuse this with the KVB block. This is Ethereum-level
 //            block information.
 //
 // * Transaction
-//   - Key: TYPE_TRANSACTION+[transaction hash (32 bytes)]
+//   - Key: kKvbKeyEthTransaction+[transaction hash (32 bytes)]
 //   - Value: com::vmware::concord::kvb::Transaction protobuf
 //
 // * Account or Contract Balance
-//   - Key: TYPE_BALANCE+[account/contract address (20 bytes)]
+//   - Key: kKvbKeyEthBalance+[account/contract address (20 bytes)]
 //   - Value: com::vmware::concord::kvb::Balance protobuf
 //   - Notes: Yes, it seems a little overkill to wrap a number in a protobuf
 //            encoding, but this saves hassle with endian encoding.
 //
 // * Contract Code
-//   - Key: TYPE_CODE+[contract address (20 bytes)]
+//   - Key: kKvbKeyEthCode+[contract address (20 bytes)]
 //   - Value: com::vmware::concord::kvb::Code protobuf
 //
 // * Contract Data
-//   - Key: TYPE_STORAGE+[contract address (20 bytes)]+[location (32 bytes)]
-//   - Value: 32 bytes directly copied from an evmc_uint256be
+//   - Key: kKvbKeyEthStorage+[contract address (20 bytes)]+[location (32
+//   bytes)]
+//   - Value: 32 bytes directly copied from an evm_uint256be
 //   - Notes: aka "storage"
 //
 // * Account Nonce
-//   - Key: TYPE_NONCE+[account address (20 bytes)]
+//   - Key: kKvbKeyEthNonce+[account address (20 bytes)]
 //   - Value: com::vmware::concord::kvb::Nonce protobuf
 //   - Notes: As with balance, using protobuf solves encoding issues.
 
@@ -66,6 +67,7 @@
 #include "common/concord_exception.hpp"
 #include "concord_storage.pb.h"
 #include "evmc/evmc.h"
+#include "storage/kvb_key_types.h"
 #include "utils/concord_eth_hash.hpp"
 
 using concord::common::BlockNotFoundException;
@@ -82,6 +84,13 @@ using concordUtils::BlockId;
 using concordUtils::SetOfKeyValuePairs;
 using concordUtils::Sliver;
 using concordUtils::Status;
+
+using concord::storage::kKvbKeyEthBalance;
+using concord::storage::kKvbKeyEthBlock;
+using concord::storage::kKvbKeyEthCode;
+using concord::storage::kKvbKeyEthNonce;
+using concord::storage::kKvbKeyEthStorage;
+using concord::storage::kKvbKeyEthTransaction;
 
 namespace concord {
 namespace ethereum {
@@ -136,7 +145,7 @@ const ILocalKeyValueStorageReadOnly &EthKvbStorage::getReadOnlyStorage() {
  */
 Sliver EthKvbStorage::kvb_key(uint8_t type, const uint8_t *bytes,
                               size_t length) const {
-  uint8_t *key = new uint8_t[1 + length];
+  char *key = new char[1 + length];
   key[0] = type;
   std::copy(bytes, bytes + length, key + 1);
   return Sliver(key, length + 1);
@@ -146,31 +155,32 @@ Sliver EthKvbStorage::kvb_key(uint8_t type, const uint8_t *bytes,
  * Convenience functions for constructing a key for each object type.
  */
 Sliver EthKvbStorage::block_key(const EthBlock &blk) const {
-  return kvb_key(TYPE_BLOCK, blk.get_hash().bytes, sizeof(evmc_uint256be));
+  return kvb_key(kKvbKeyEthBlock, blk.get_hash().bytes, sizeof(evmc_uint256be));
 }
 
 Sliver EthKvbStorage::block_key(const evmc_uint256be &hash) const {
-  return kvb_key(TYPE_BLOCK, hash.bytes, sizeof(hash));
+  return kvb_key(kKvbKeyEthBlock, hash.bytes, sizeof(hash));
 }
 
 Sliver EthKvbStorage::transaction_key(const EthTransaction &tx) const {
-  return kvb_key(TYPE_TRANSACTION, tx.hash().bytes, sizeof(evmc_uint256be));
+  return kvb_key(kKvbKeyEthTransaction, tx.hash().bytes,
+                 sizeof(evmc_uint256be));
 }
 
 Sliver EthKvbStorage::transaction_key(const evmc_uint256be &hash) const {
-  return kvb_key(TYPE_TRANSACTION, hash.bytes, sizeof(hash));
+  return kvb_key(kKvbKeyEthTransaction, hash.bytes, sizeof(hash));
 }
 
 Sliver EthKvbStorage::balance_key(const evmc_address &addr) const {
-  return kvb_key(TYPE_BALANCE, addr.bytes, sizeof(addr));
+  return kvb_key(kKvbKeyEthBalance, addr.bytes, sizeof(addr));
 }
 
 Sliver EthKvbStorage::nonce_key(const evmc_address &addr) const {
-  return kvb_key(TYPE_NONCE, addr.bytes, sizeof(addr));
+  return kvb_key(kKvbKeyEthNonce, addr.bytes, sizeof(addr));
 }
 
 Sliver EthKvbStorage::code_key(const evmc_address &addr) const {
-  return kvb_key(TYPE_CODE, addr.bytes, sizeof(addr));
+  return kvb_key(kKvbKeyEthCode, addr.bytes, sizeof(addr));
 }
 
 Sliver EthKvbStorage::storage_key(const evmc_address &addr,
@@ -179,7 +189,7 @@ Sliver EthKvbStorage::storage_key(const evmc_address &addr,
   std::copy(addr.bytes, addr.bytes + sizeof(addr), combined);
   std::copy(location.bytes, location.bytes + sizeof(location),
             combined + sizeof(addr));
-  return kvb_key(TYPE_STORAGE, combined, sizeof(addr) + sizeof(location));
+  return kvb_key(kKvbKeyEthStorage, combined, sizeof(addr) + sizeof(location));
 }
 
 ////////////////////////////////////////
@@ -240,7 +250,7 @@ Status EthKvbStorage::write_block(uint64_t timestamp, uint64_t gas_limit) {
     size_t txser_length = tx.serialize(&txser);
     blk.gas_used += tx.gas_used;
 
-    put(txaddr, Sliver(txser, txser_length));
+    put(txaddr, Sliver(reinterpret_cast<char *>(txser), txser_length));
   }
   pending_transactions.clear();
 
@@ -278,7 +288,7 @@ void EthKvbStorage::add_block(EthBlock &blk) {
   uint8_t *blkser;
   size_t blkser_length = blk.serialize(&blkser);
 
-  put(blkaddr, Sliver(blkser, blkser_length));
+  put(blkaddr, Sliver(reinterpret_cast<char *>(blkser), blkser_length));
 }
 
 void EthKvbStorage::add_transaction(EthTransaction &tx) {
@@ -297,7 +307,7 @@ void EthKvbStorage::set_balance(const evmc_address &addr,
   proto.set_version(balance_storage_version);
   proto.set_balance(balance.bytes, sizeof(evmc_uint256be));
   size_t sersize = proto.ByteSize();
-  uint8_t *ser = new uint8_t[sersize];
+  char *ser = new char[sersize];
   proto.SerializeToArray(ser, sersize);
 
   put(balance_key(addr), Sliver(ser, sersize));
@@ -308,7 +318,7 @@ void EthKvbStorage::set_nonce(const evmc_address &addr, uint64_t nonce) {
   proto.set_version(nonce_storage_version);
   proto.set_nonce(nonce);
   size_t sersize = proto.ByteSize();
-  uint8_t *ser = new uint8_t[sersize];
+  char *ser = new char[sersize];
   proto.SerializeToArray(ser, sersize);
 
   put(nonce_key(addr), Sliver(ser, sersize));
@@ -323,7 +333,7 @@ void EthKvbStorage::set_code(const evmc_address &addr, const uint8_t *code,
   proto.set_hash(hash.bytes, sizeof(hash));
 
   size_t sersize = proto.ByteSize();
-  uint8_t *ser = new uint8_t[sersize];
+  char *ser = new char[sersize];
   proto.SerializeToArray(ser, sersize);
 
   put(code_key(addr), Sliver(ser, sersize));
@@ -332,7 +342,7 @@ void EthKvbStorage::set_code(const evmc_address &addr, const uint8_t *code,
 void EthKvbStorage::set_storage(const evmc_address &addr,
                                 const evmc_uint256be &location,
                                 const evmc_uint256be &data) {
-  uint8_t *str = new uint8_t[sizeof(data)];
+  char *str = new char[sizeof(data)];
   std::copy(data.bytes, data.bytes + sizeof(data), str);
   put(storage_key(addr, location), Sliver(str, sizeof(data)));
 }
@@ -409,7 +419,7 @@ EthBlock EthKvbStorage::get_block(uint64_t number) {
                               << " value.size: " << outBlockData.size());
   if (status.isOK()) {
     for (auto kvp : outBlockData) {
-      if (kvp.first.data()[0] == TYPE_BLOCK) {
+      if (kvp.first.data()[0] == kKvbKeyEthBlock) {
         return EthBlock::deserialize(kvp.second);
       }
     }

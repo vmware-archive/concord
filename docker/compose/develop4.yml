@@ -29,6 +29,7 @@ services:
       - ../resources/tls_certs:/concord/tls_certs:ro
     command: >
         bash -c "cp /concord/config-local/concord_with_hostnames.config /concord/config-local/concord.config &&
+        mkdir -p /concord/resources && cp /concord/config-public/metrics_config.yaml /concord/resources &&
         /concord/config-public/find-docker-instances.sh /concord/config-local/concord.config concord-dev concord2 concord3 concord4 &&
         /concord/concord -c /concord/config-local/concord.config"
 
@@ -62,6 +63,8 @@ services:
       - ../resources/tls_certs:/concord/tls_certs:ro
     command: >
         bash -c "cp /concord/config-local/concord_with_hostnames.config /concord/config-local/concord.config &&
+        mkdir -p /concord/resources &&
+        cp /concord/config-public/metrics_config.yaml /concord/resources &&
         /concord/config-public/find-docker-instances.sh /concord/config-local/concord.config concord-dev concord2 concord3 concord4 &&
         /concord/concord -c /concord/config-local/concord.config"
 
@@ -95,6 +98,8 @@ services:
       - ../resources/tls_certs:/concord/tls_certs:ro
     command: >
         bash -c "cp /concord/config-local/concord_with_hostnames.config /concord/config-local/concord.config &&
+        mkdir -p /concord/resources &&
+        cp /concord/config-public/metrics_config.yaml /concord/resources &&
         /concord/config-public/find-docker-instances.sh /concord/config-local/concord.config concord-dev concord2 concord3 concord4 &&
         /concord/concord -c /concord/config-local/concord.config"
 

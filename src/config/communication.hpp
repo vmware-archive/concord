@@ -1,15 +1,19 @@
 // Copyright (c) 2018-2019 VMware, Inc. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-//
+
 // BFT Communication Configuration
 
-#ifndef CONCORD_CONSENSUS_COMMUNICATION_H_
-#define CONCORD_CONSENSUS_COMMUNICATION_H_
+#ifndef CONCORD_CONFIG_COMMUNICATION_H_
+#define CONCORD_CONFIG_COMMUNICATION_H_
 
 #include "communication/CommDefs.hpp"
 
+#include <stdint.h>
+
+#include <string>
+
 namespace concord {
-namespace consensus {
+namespace config {
 
 struct CommConfig {
   // common fields
@@ -31,7 +35,7 @@ struct CommConfig {
   std::string commType;
 };
 
-}  // namespace consensus
+}  // namespace config
 }  // namespace concord
 
-#endif  // CONCORD_CONSENSUS_COMMUNICATION_H_
+#endif  // CONCORD_CONFIG_COMMUNICATION_H_
