@@ -5,3 +5,4 @@ services:
 
 script:
   - docker/build_images.sh
+  - docker/tests.sh
