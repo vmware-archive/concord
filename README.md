@@ -2,6 +2,13 @@
 
 # Concord
 
+---
+**:warning: Latest updates can be found in the [Concord-BFT](https://github.com/vmware/concord-bft) repository**
+
+This repository is currently inactive. Concord open-source development currently active in the [Concord-BFT](https://github.com/vmware/concord-bft) repository. Please go to that repository for the latest updates.
+
+---
+
 Project Concord is an open source, scalable decentralized Blockchain. It 
 leverages the [Concord-BFT](https://github.com/vmware/concord-bft) engine
 based on years of academic and industrial research, and implements 
