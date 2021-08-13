@@ -166,7 +166,7 @@
         <maven.plugin.surefire.version>2.22.0</maven.plugin.surefire.version>
 
         <!-- Library properties. -->
-        <bouncycastle.version>1.53</bouncycastle.version>
+        <bouncycastle.version>1.67</bouncycastle.version>
         <ehcache.version>2.10.6</ehcache.version>
         <grpc.runtime.java.version>1.18.0</grpc.runtime.java.version>
         <guava.version>27.0-jre</guava.version>
